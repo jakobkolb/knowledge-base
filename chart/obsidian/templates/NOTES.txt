@@ -3,9 +3,9 @@ Obsidian vault container {{ include "obsidian.fullname" . }} deployed.
 To complete first-time setup, port-forward the VNC UI and open it in a browser:
 
   kubectl port-forward -n {{ .Release.Namespace }} \
-    svc/{{ include "obsidian.fullname" . }} {{ .Values.service.vncPort }}:{{ .Values.service.vncPort }}
+    svc/{{ include "obsidian.fullname" . }} {{ .Values.service.guiPortHttp }}:{{ .Values.service.guiPortHttp }}
 
-Then open http://localhost:{{ .Values.service.vncPort }} and:
+Then open http://localhost:{{ .Values.service.guiPortHttp }} and:
   1. Open or create your vault under /config/obsidian/
   2. Install the "Local REST API" community plugin
   3. Enable the plugin and copy the generated API key from its settings

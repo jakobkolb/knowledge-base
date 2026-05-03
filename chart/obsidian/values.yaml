@@ -10,18 +10,17 @@ fullnameOverride: ""
 env:
   PUID: "1000"
   PGID: "1000"
-  TZ: "Europe/Berlin"
+  TZ: Europe/Berlin
 
 service:
-  # REST API port — used in-cluster by mcp-obsidian
-  restApiPort: 27124
-  # KasmVNC web UI — only needed for bootstrap (kubectl port-forward)
-  vncPort: 6901
+  # Local REST API plugin — only reachable on 127.0.0.1 inside the pod; not exposed
+  guiPortHttp: 3000     # KasmVNC HTTP — use for kubectl port-forward bootstrap
+  guiPortHttps: 3001    # KasmVNC HTTPS
+  mcpPort: 8000         # mcp-obsidian sidecar
 
 persistence:
   enabled: true
-  # Stores the vault, Obsidian config, and plugin state.
-  # Use a storageClass with reclaimPolicy: Retain to protect vault data.
+  # Use a storageClass with reclaimPolicy: Retain to protect vault data
   size: 10Gi
   storageClass: ""
   accessMode: ReadWriteOnce
@@ -33,6 +32,37 @@ resources:
   limits:
     cpu: "2"
     memory: 2Gi
+
+# mcp-obsidian sidecar — shares the pod network so it can reach 127.0.0.1:27124
+mcp:
+  image:
+    repository: ghcr.io/jakobkolb/mcp-obsidian
+    tag: latest
+    pullPolicy: IfNotPresent
+  env:
+    OBSIDIAN_HOST: "127.0.0.1"   # loopback — same pod network namespace
+    OBSIDIAN_PORT: "27124"
+    OBSIDIAN_PROTOCOL: https
+  # OBSIDIAN_API_KEY — set in obsidian.secret.yaml
+  secretEnv: {}
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/auth-type: basic
+      nginx.ingress.kubernetes.io/auth-secret: mcp-obsidian-basic-auth
+      nginx.ingress.kubernetes.io/auth-realm: "MCP Authentication Required"
+    host: obsidian.mcp.mydomain.hopto.org
+    tls: true
+    tlsSecretName: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
 
 nodeSelector: {}
 

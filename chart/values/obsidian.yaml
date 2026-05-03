@@ -1,0 +1,3 @@
+mcp:
+  ingress:
+    host: obsidian.mcp.mydomain.hopto.org

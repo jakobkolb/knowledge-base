@@ -1,1 +1,2 @@
 chart/values/*.secret.yaml
+.claude/

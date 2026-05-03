@@ -1,0 +1,33 @@
+{{- if .Values.mcp.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "obsidian.fullname" . }}-mcp
+  labels:
+    {{- include "obsidian.labels" . | nindent 4 }}
+  {{- with .Values.mcp.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.mcp.ingress.className }}
+  ingressClassName: {{ .Values.mcp.ingress.className }}
+  {{- end }}
+  {{- if .Values.mcp.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.mcp.ingress.host | quote }}
+      secretName: {{ .Values.mcp.ingress.tlsSecretName | default (printf "%s-mcp-tls" (include "obsidian.fullname" .)) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.mcp.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "obsidian.fullname" . }}
+                port:
+                  number: {{ .Values.service.mcpPort }}
+{{- end }}
