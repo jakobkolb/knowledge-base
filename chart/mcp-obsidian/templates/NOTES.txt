@@ -1,9 +1,9 @@
-Obsidian vault container {{ include "obsidian.fullname" . }} deployed.
+Obsidian vault container {{ include "mcp-obsidian.fullname" . }} deployed.
 
 To complete first-time setup, port-forward the VNC UI and open it in a browser:
 
   kubectl port-forward -n {{ .Release.Namespace }} \
-    svc/{{ include "obsidian.fullname" . }} {{ .Values.service.guiPortHttp }}:{{ .Values.service.guiPortHttp }}
+    svc/{{ include "mcp-obsidian.fullname" . }} {{ .Values.service.guiPortHttp }}:{{ .Values.service.guiPortHttp }}
 
 Then open http://localhost:{{ .Values.service.guiPortHttp }} and:
   1. Open or create your vault under /config/obsidian/
@@ -15,4 +15,4 @@ Pass the API key to the mcp-obsidian release:
     OBSIDIAN_API_KEY: "<paste key here>"
 
 The REST API is reachable in-cluster at:
-  https://{{ include "obsidian.fullname" . }}:{{ .Values.service.restApiPort }}
+  https://{{ include "mcp-obsidian.fullname" . }}:{{ .Values.service.restApiPort }}

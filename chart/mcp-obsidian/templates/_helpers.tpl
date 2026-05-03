@@ -1,8 +1,8 @@
-{{- define "obsidian.name" -}}
+{{- define "mcp-obsidian.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "obsidian.fullname" -}}
+{{- define "mcp-obsidian.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -15,17 +15,17 @@
 {{- end }}
 {{- end }}
 
-{{- define "obsidian.chart" -}}
+{{- define "mcp-obsidian.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "obsidian.labels" -}}
-helm.sh/chart: {{ include "obsidian.chart" . }}
-{{ include "obsidian.selectorLabels" . }}
+{{- define "mcp-obsidian.labels" -}}
+helm.sh/chart: {{ include "mcp-obsidian.chart" . }}
+{{ include "mcp-obsidian.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{- define "obsidian.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "obsidian.name" . }}
+{{- define "mcp-obsidian.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "mcp-obsidian.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

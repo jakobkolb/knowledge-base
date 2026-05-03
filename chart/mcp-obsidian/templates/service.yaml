@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "obsidian.fullname" . }}
+  name: {{ include "mcp-obsidian.fullname" . }}
   labels:
-    {{- include "obsidian.labels" . | nindent 4 }}
+    {{- include "mcp-obsidian.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -20,4 +20,4 @@ spec:
       protocol: TCP
       name: gui-https
   selector:
-    {{- include "obsidian.selectorLabels" . | nindent 4 }}
+    {{- include "mcp-obsidian.selectorLabels" . | nindent 4 }}
