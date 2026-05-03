@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "obsidian.fullname" . }}
+  labels:
+    {{- include "obsidian.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.service.restApiPort }}
+      targetPort: rest-api
+      protocol: TCP
+      name: rest-api
+    - port: {{ .Values.service.vncPort }}
+      targetPort: vnc
+      protocol: TCP
+      name: vnc
+  selector:
+    {{- include "obsidian.selectorLabels" . | nindent 4 }}

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "obsidian.fullname" . }}
+  labels:
+    {{- include "obsidian.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "obsidian.selectorLabels" . | nindent 6 }}
+  # Recreate ensures the PVC (ReadWriteOnce) is released before the new pod starts
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "obsidian.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: obsidian
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: rest-api
+              containerPort: {{ .Values.service.restApiPort }}
+              protocol: TCP
+            - name: vnc
+              containerPort: {{ .Values.service.vncPort }}
+              protocol: TCP
+          env:
+            {{- range $key, $val := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          # securityContext required by linuxserver/obsidian for PUID/PGID remapping
+          securityContext:
+            privileged: false
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: {{ include "obsidian.fullname" . }}-config
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

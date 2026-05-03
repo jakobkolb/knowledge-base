@@ -1,0 +1,41 @@
+image:
+  repository: lscr.io/linuxserver/obsidian
+  tag: latest
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+# linuxserver environment variables
+env:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: "Europe/Berlin"
+
+service:
+  # REST API port — used in-cluster by mcp-obsidian
+  restApiPort: 27124
+  # KasmVNC web UI — only needed for bootstrap (kubectl port-forward)
+  vncPort: 6901
+
+persistence:
+  enabled: true
+  # Stores the vault, Obsidian config, and plugin state.
+  # Use a storageClass with reclaimPolicy: Retain to protect vault data.
+  size: 10Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
