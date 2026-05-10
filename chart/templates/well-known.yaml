@@ -25,7 +25,7 @@ data:
         # Dynamic Client Registration, which the MCP spec requires.
         location = /.well-known/oauth-authorization-server {
             default_type application/json;
-            return 200 '{"issuer":"{{ $authServerUrl }}","authorization_endpoint":"{{ $authServerUrl }}/auth","token_endpoint":"{{ $authServerUrl }}/token","registration_endpoint":"{{ $authServerUrl }}/register","jwks_uri":"{{ $authServerUrl }}/keys","scopes_supported":["openid","profile","email","offline_access"],"response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"token_endpoint_auth_methods_supported":["none"],"code_challenge_methods_supported":["S256"]}';
+            return 200 '{"issuer":"{{ $authServerUrl }}","authorization_endpoint":"{{ $authServerUrl }}/auth","token_endpoint":"{{ $authServerUrl }}/token","registration_endpoint":"{{ $authServerUrl }}/register","jwks_uri":"{{ $authServerUrl }}/keys","scopes_supported":["openid","profile","email","offline_access"],"response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"token_endpoint_auth_methods_supported":["client_secret_post","client_secret_basic"],"code_challenge_methods_supported":["S256"]}';
         }
         # RFC 7591: Dynamic Client Registration — MCP spec requires this.
         # Returns a fixed public-client registration so claude.ai learns to use
@@ -42,23 +42,6 @@ data:
         # Proxy Dex OIDC discovery — the /.well-known prefix ingress intercepts
         # this before the Dex ingress's /, so we must forward it internally.
         location = /.well-known/openid-configuration {
-            proxy_pass http://{{ $rn }}-dex:5556;
-        }
-        # Strip client_secret from token requests — claude.ai sends one even though
-        # the client is public and token_endpoint_auth_methods_supported=["none"].
-        # Dex (public: true) rejects any non-empty client_secret, so remove it.
-        location = /token {
-            rewrite_by_lua_block {
-                ngx.req.read_body()
-                local body = ngx.req.get_body_data()
-                if body then
-                    local args = ngx.decode_args(body)
-                    args.client_secret = nil
-                    body = ngx.encode_args(args)
-                    ngx.req.set_body_data(body)
-                    ngx.req.set_header("Content-Length", tostring(#body))
-                end
-            }
             proxy_pass http://{{ $rn }}-dex:5556;
         }
         # Scope injection: claude.ai omits "openid" from authorization requests,
@@ -107,7 +90,7 @@ spec:
             httpGet:
               path: /.well-known/oauth-protected-resource
               port: 80
-            initialDelaySeconds: 3
+            initialDelaySeconds: 30
             periodSeconds: 10
       volumes:
         - name: config
