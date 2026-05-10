@@ -67,17 +67,17 @@ spec:
                   key: {{ $key }}
             {{- end }}
           livenessProbe:
-            exec:
-              command: [wget, -qO-, "http://localhost:{{ .Values.service.mcpPort }}/health"]
-            initialDelaySeconds: 15
-            periodSeconds: 30
-            failureThreshold: 5
-          readinessProbe:
-            exec:
-              command: [wget, -qO-, "http://localhost:{{ .Values.service.mcpPort }}/health"]
+            httpGet:
+              path: /health
+              port: mcp
             initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: mcp
+            initialDelaySeconds: 5
             periodSeconds: 10
-            failureThreshold: 5
           resources:
             {{- toYaml .Values.mcp.resources | nindent 12 }}
 
