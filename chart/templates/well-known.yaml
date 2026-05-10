@@ -20,9 +20,24 @@ data:
             return 200 '{"resource":"https://$host","authorization_servers":["{{ $authServerUrl }}"],"scopes_provided":["openid","profile","email"]}';
         }
         # RFC 8414: auth server metadata for claude.ai MCP discovery
+        # token_endpoint_auth_methods_supported=["none"] tells clients not to send a
+        # client_secret (PKCE is sufficient).  registration_endpoint enables RFC 7591
+        # Dynamic Client Registration, which the MCP spec requires.
         location = /.well-known/oauth-authorization-server {
             default_type application/json;
-            return 200 '{"issuer":"{{ $authServerUrl }}","authorization_endpoint":"{{ $authServerUrl }}/auth","token_endpoint":"{{ $authServerUrl }}/token","jwks_uri":"{{ $authServerUrl }}/keys","scopes_supported":["openid","profile","email","offline_access"],"response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"code_challenge_methods_supported":["S256"]}';
+            return 200 '{"issuer":"{{ $authServerUrl }}","authorization_endpoint":"{{ $authServerUrl }}/auth","token_endpoint":"{{ $authServerUrl }}/token","registration_endpoint":"{{ $authServerUrl }}/register","jwks_uri":"{{ $authServerUrl }}/keys","scopes_supported":["openid","profile","email","offline_access"],"response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"token_endpoint_auth_methods_supported":["none"],"code_challenge_methods_supported":["S256"]}';
+        }
+        # RFC 7591: Dynamic Client Registration — MCP spec requires this.
+        # Returns a fixed public-client registration so claude.ai learns to use
+        # token_endpoint_auth_method=none (PKCE only, no client_secret).
+        location = /register {
+            content_by_lua_block {
+                ngx.req.read_body()
+                ngx.header["Content-Type"] = "application/json"
+                ngx.status = 201
+                ngx.say('{"client_id":"claude-mcp","client_id_issued_at":' .. ngx.time() .. ',"redirect_uris":["https://claude.ai/api/mcp/auth_callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none","code_challenge_methods_supported":["S256"]}')
+                return ngx.exit(201)
+            }
         }
         # Proxy Dex OIDC discovery — the /.well-known prefix ingress intercepts
         # this before the Dex ingress's /, so we must forward it internally.
@@ -156,6 +171,13 @@ spec:
                   number: 80
           - path: /auth
             pathType: Prefix
+            backend:
+              service:
+                name: {{ $wkName }}
+                port:
+                  number: 80
+          - path: /register
+            pathType: Exact
             backend:
               service:
                 name: {{ $wkName }}
