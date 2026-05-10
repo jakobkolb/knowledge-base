@@ -10,6 +10,10 @@ global:
 
   secrets: {}   # all secret fields populated in values.secret.yaml
 
+  registry:
+    existingSecret: ""    # name of a pre-existing imagePullSecret; skips Secret creation
+    dockerConfigJson: ""  # base64 .dockerconfigjson; chart creates a Secret named registry-creds
+
 
 # ── mcp-obsidian ─────────────────────────────────────────────────────────────
 mcp-obsidian:

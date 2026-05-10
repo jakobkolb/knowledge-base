@@ -17,6 +17,14 @@ spec:
       labels:
         {{- include "mcp-obsidian.labels" . | nindent 8 }}
     spec:
+      {{- $pullSecret := .Values.global.registry.existingSecret }}
+      {{- if and (not $pullSecret) .Values.global.registry.dockerConfigJson }}
+      {{- $pullSecret = "registry-creds" }}
+      {{- end }}
+      {{- if $pullSecret }}
+      imagePullSecrets:
+        - name: {{ $pullSecret }}
+      {{- end }}
       containers:
         # ── Obsidian desktop (REST API on 127.0.0.1:27124) ───────────────────
         - name: obsidian

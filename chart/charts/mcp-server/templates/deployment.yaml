@@ -14,6 +14,14 @@ spec:
       labels:
         {{- include "mcp-server.labels" . | nindent 8 }}
     spec:
+      {{- $pullSecret := .Values.global.registry.existingSecret }}
+      {{- if and (not $pullSecret) .Values.global.registry.dockerConfigJson }}
+      {{- $pullSecret = "registry-creds" }}
+      {{- end }}
+      {{- if $pullSecret }}
+      imagePullSecrets:
+        - name: {{ $pullSecret }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
