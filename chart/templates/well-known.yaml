@@ -15,8 +15,6 @@ data:
     server {
         listen 80;
         # RFC 9728: protected resource metadata
-        # scopes_provided tells the client which scopes to request — must include
-        # "openid" so Dex accepts the authorization request (it requires openid).
         location = /.well-known/oauth-protected-resource {
             default_type application/json;
             return 200 '{"resource":"https://$host","authorization_servers":["{{ $authServerUrl }}"],"scopes_provided":["openid","profile","email"]}';
@@ -25,6 +23,25 @@ data:
         location = /.well-known/oauth-authorization-server {
             default_type application/json;
             return 200 '{"issuer":"{{ $authServerUrl }}","authorization_endpoint":"{{ $authServerUrl }}/auth","token_endpoint":"{{ $authServerUrl }}/token","jwks_uri":"{{ $authServerUrl }}/keys","scopes_supported":["openid","profile","email","offline_access"],"response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"code_challenge_methods_supported":["S256"]}';
+        }
+        # Proxy Dex OIDC discovery — the /.well-known prefix ingress intercepts
+        # this before the Dex ingress's /, so we must forward it internally.
+        location = /.well-known/openid-configuration {
+            proxy_pass http://{{ $rn }}-dex:5556;
+        }
+        # Scope injection: claude.ai omits "openid" from authorization requests,
+        # which Dex rejects.  Add it here before forwarding to Dex.
+        # Uses OpenResty Lua (rewrite_by_lua_block) to modify the scope arg.
+        location /auth {
+            rewrite_by_lua_block {
+                local args = ngx.req.get_uri_args()
+                local scope = args.scope or ""
+                if scope ~= "" and not scope:find("openid", 1, true) then
+                    args.scope = "openid " .. scope
+                end
+                ngx.req.set_uri_args(args)
+            }
+            proxy_pass http://{{ $rn }}-dex:5556;
         }
         location / { return 404; }
     }
@@ -48,7 +65,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginx:alpine
+          image: openresty/openresty:alpine
           ports:
             - containerPort: 80
           volumeMounts:
@@ -107,9 +124,11 @@ spec:
                   number: 80
 ---
 {{- end }}
-{{/* /.well-known on auth host — longer prefix wins over the Dex ingress's /,
-     so /.well-known/oauth-authorization-server routes here (RFC 8414 proxy)
-     while all other auth.mcp.* paths still go to Dex */}}
+{{/* auth host ingress: routes /.well-known and /auth to this service.
+     /.well-known/* prefix beats the Dex ingress's / — openid-configuration is
+     proxied to Dex internally; oauth-authorization-server is served as static JSON.
+     /auth* prefix also beats / — scope injection is applied before forwarding to Dex.
+     All other auth.mcp.* paths (/token, /keys, /callback) still go to Dex. */}}
 {{- $authHost := printf "auth.mcp.%s" $base }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -129,6 +148,13 @@ spec:
       http:
         paths:
           - path: /.well-known
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $wkName }}
+                port:
+                  number: 80
+          - path: /auth
             pathType: Prefix
             backend:
               service:
