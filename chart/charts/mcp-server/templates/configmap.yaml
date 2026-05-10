@@ -1,4 +1,4 @@
-{{- if .Values.configFile.enabled }}
+{{- if and .Values.configFile.enabled .Values.global.createSecrets }}
 apiVersion: v1
 kind: Secret
 metadata:

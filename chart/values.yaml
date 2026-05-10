@@ -9,6 +9,7 @@ global:
   authServerUrl: https://auth.mcp.jakobjkolb.xyz
 
   secrets: {}   # all secret fields populated in values.secret.yaml
+  createSecrets: true   # set false for ArgoCD — pre-create secrets in cluster instead
 
   registry:
     existingSecret: ""    # name of a pre-existing imagePullSecret; skips Secret creation
