@@ -3,7 +3,6 @@
 {{- $authServerUrl := .Values.global.authServerUrl -}}
 {{- $rn := .Release.Name -}}
 {{- $wkName := printf "%s-well-known" $rn -}}
-{{- $dexInternal := printf "http://%s-dex.%s.svc.cluster.local:5556" $rn .Release.Namespace -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -20,11 +19,11 @@ data:
             default_type application/json;
             return 200 '{"resource":"https://$host","authorization_servers":["{{ $authServerUrl }}"]}';
         }
-        # RFC 8414: auth server metadata — proxy to Dex's OIDC discovery doc
-        # (served here so the auth.mcp.* ingress can route /.well-known here
-        #  without needing nginx server-snippet annotations on the Dex ingress)
+        # RFC 8414: auth server metadata for claude.ai MCP discovery
+        # Static doc — all URLs derive from authServerUrl, known at render time.
         location = /.well-known/oauth-authorization-server {
-            proxy_pass {{ $dexInternal }}/.well-known/openid-configuration;
+            default_type application/json;
+            return 200 '{"issuer":"{{ $authServerUrl }}","authorization_endpoint":"{{ $authServerUrl }}/auth","token_endpoint":"{{ $authServerUrl }}/token","jwks_uri":"{{ $authServerUrl }}/keys","response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"code_challenge_methods_supported":["S256"]}';
         }
         location / { return 404; }
     }
