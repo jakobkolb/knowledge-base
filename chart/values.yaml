@@ -86,7 +86,7 @@ dex:
     staticClients:
       - id: claude-mcp
         name: Claude MCP
-        secretEnv: DEX_CLIENT_SECRET
+        public: true
         redirectURIs:
           - https://claude.ai/api/mcp/auth_callback
   envFrom:
