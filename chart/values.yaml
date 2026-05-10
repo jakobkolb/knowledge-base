@@ -88,20 +88,6 @@ dex:
     - secretRef:
         name: dex-github-client   # created by templates/secrets.yaml
 
-  # Use exec probes — microk8s CNI bug prevents kubelet HTTP probes to pod IPs
-  livenessProbe:
-    exec:
-      command: [wget, -qO-, http://localhost:5558/healthz/live]
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    failureThreshold: 5
-  readinessProbe:
-    exec:
-      command: [wget, -qO-, http://localhost:5558/healthz/ready]
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    failureThreshold: 5
-
   ingress:
     enabled: false    # umbrella chart owns all ingresses
   serviceAccount:
@@ -127,17 +113,3 @@ oauth2-proxy:
     portNumber: 4180
   ingress:
     enabled: false    # internal only — nginx reaches it via cluster DNS
-
-  # Use exec probes — microk8s CNI bug prevents kubelet HTTP probes to pod IPs
-  livenessProbe:
-    exec:
-      command: [wget, -qO-, http://localhost:4180/ping]
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    failureThreshold: 5
-  readinessProbe:
-    exec:
-      command: [wget, -qO-, http://localhost:4180/ready]
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    failureThreshold: 5
