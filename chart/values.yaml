@@ -81,18 +81,13 @@ dex:
     staticClients:
       - id: claude-mcp
         name: Claude MCP
-        secret: $DEX_CLIENT_SECRET
+        public: true
         redirectURIs:
           - https://claude.ai/api/mcp/auth_callback
   envFrom:
     - secretRef:
         name: dex-github-client   # created by templates/secrets.yaml
-  envVars:
-    - name: DEX_CLIENT_SECRET
-      valueFrom:
-        secretKeyRef:
-          name: dex-static-client
-          key: clientSecret
+
   ingress:
     enabled: false    # umbrella chart owns all ingresses
   serviceAccount:
