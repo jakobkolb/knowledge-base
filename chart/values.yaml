@@ -26,6 +26,7 @@ mcp-obsidian:
     PUID: "1000"
     PGID: "1000"
     TZ: Europe/Berlin
+    PIXELFLUX_WAYLAND: "false"   # force Xvfb (no GPU needed); image default=true uses labwc which requires /dev/dri
   persistence:
     enabled: true
     size: 10Gi
