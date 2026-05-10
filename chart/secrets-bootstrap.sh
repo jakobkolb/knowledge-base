@@ -16,7 +16,8 @@ RELEASE="${RELEASE:-kb}"            # must match the Helm release name in ArgoCD
 GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:-}"
 GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:-}"
 DEX_CLIENT_SECRET="${DEX_CLIENT_SECRET:-}"   # shared between Dex staticClient and oauth2-proxy
-COOKIE_SECRET="${COOKIE_SECRET:-}"           # random 32+ chars: openssl rand -base64 32
+COOKIE_SECRET="${COOKIE_SECRET:-}"           # must decode to exactly 16, 24, or 32 bytes — generate with:
+                                             #   python3 -c 'import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())'
 OBSIDIAN_API_KEY="${OBSIDIAN_API_KEY:-}"
 
 # Registry credentials (leave blank to skip)
