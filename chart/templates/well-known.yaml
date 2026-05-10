@@ -3,6 +3,7 @@
 {{- $authServerUrl := .Values.global.authServerUrl -}}
 {{- $rn := .Release.Name -}}
 {{- $wkName := printf "%s-well-known" $rn -}}
+{{- $dexInternal := printf "http://%s-dex.%s.svc.cluster.local:5556" $rn .Release.Namespace -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -14,9 +15,16 @@ data:
   default.conf: |
     server {
         listen 80;
+        # RFC 9728: tell clients which auth server protects this resource
         location = /.well-known/oauth-protected-resource {
             default_type application/json;
             return 200 '{"resource":"https://$host","authorization_servers":["{{ $authServerUrl }}"]}';
+        }
+        # RFC 8414: auth server metadata — proxy to Dex's OIDC discovery doc
+        # (served here so the auth.mcp.* ingress can route /.well-known here
+        #  without needing nginx server-snippet annotations on the Dex ingress)
+        location = /.well-known/oauth-authorization-server {
+            proxy_pass {{ $dexInternal }}/.well-known/openid-configuration;
         }
         location / { return 404; }
     }
@@ -70,8 +78,7 @@ spec:
     - port: 80
       targetPort: 80
 ---
-{{/* One ingress per MCP hostname — /.well-known prefix, no auth annotation,
-     reuses the same TLS secret as the main ingress for that hostname */}}
+{{/* /.well-known ingress per MCP hostname — no auth annotation */}}
 {{- range $sub := list "obsidian" "calendar" }}
 {{- $host := printf "%s.mcp.%s" $sub $base }}
 apiVersion: networking.k8s.io/v1
@@ -100,3 +107,31 @@ spec:
                   number: 80
 ---
 {{- end }}
+{{/* /.well-known on auth host — longer prefix wins over the Dex ingress's /,
+     so /.well-known/oauth-authorization-server routes here (RFC 8414 proxy)
+     while all other auth.mcp.* paths still go to Dex */}}
+{{- $authHost := printf "auth.mcp.%s" $base }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $rn }}-auth-well-known
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ $issuer }}
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [{{ $authHost }}]
+      secretName: {{ $rn }}-dex-tls
+  rules:
+    - host: {{ $authHost }}
+      http:
+        paths:
+          - path: /.well-known
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $wkName }}
+                port:
+                  number: 80
