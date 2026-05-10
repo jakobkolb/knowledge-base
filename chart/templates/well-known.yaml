@@ -183,10 +183,3 @@ spec:
                 name: {{ $wkName }}
                 port:
                   number: 80
-          - path: /token
-            pathType: Exact
-            backend:
-              service:
-                name: {{ $wkName }}
-                port:
-                  number: 80
