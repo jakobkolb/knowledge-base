@@ -1,0 +1,26 @@
+apiVersion: v2
+name: knowledge-base
+version: 0.1.0
+description: MCP servers with OAuth authentication for cross-device knowledge base access
+type: application
+keywords:
+  - mcp
+  - obsidian
+  - oauth
+maintainers:
+  - name: jakobkolb
+
+dependencies:
+  - name: mcp-obsidian
+    version: "0.1.0"
+    repository: "file://charts/mcp-obsidian"
+  - name: mcp-server
+    version: "0.1.0"
+    repository: "file://charts/mcp-server"
+    alias: mcp-calendar
+  - name: dex
+    version: "0.x"
+    repository: "https://charts.dexidp.io"
+  - name: oauth2-proxy
+    version: "7.x"
+    repository: "https://oauth2-proxy.github.io/manifests"

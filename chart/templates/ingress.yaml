@@ -1,0 +1,64 @@
+{{- $base := .Values.global.baseDomain -}}
+{{- $issuer := .Values.global.clusterIssuer | default "letsencrypt-prod" -}}
+{{- $rn := .Release.Name -}}
+{{- $authSvc := printf "http://%s-oauth2-proxy:4180/oauth2/auth" $rn -}}
+
+{{/* MCP services: path /, protected by oauth2-proxy Bearer JWT validation */}}
+{{- range $sub, $chartSvc := dict "obsidian" (printf "%s-mcp-obsidian" $rn) "calendar" (printf "%s-mcp-calendar" $rn) -}}
+{{- $host := printf "%s.mcp.%s" $sub $base -}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $rn }}-{{ $sub }}
+  labels:
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ $issuer }}
+    nginx.ingress.kubernetes.io/auth-url: {{ $authSvc | quote }}
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email,Authorization"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [{{ $host }}]
+      secretName: {{ $rn }}-{{ $sub }}-tls
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $chartSvc }}
+                port:
+                  number: 8000
+{{- end }}
+
+{{/* Dex (OAuth AS): no auth */}}
+{{- $authHost := printf "auth.mcp.%s" $base }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $rn }}-dex
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ $issuer }}
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [{{ $authHost }}]
+      secretName: {{ $rn }}-dex-tls
+  rules:
+    - host: {{ $authHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $rn }}-dex
+                port:
+                  number: 5556

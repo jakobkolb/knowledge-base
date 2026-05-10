@@ -2,217 +2,99 @@
 
 Kubernetes deployment for the [mcp-servers](https://github.com/jakobkolb/mcp-servers) suite and a self-hosted Obsidian vault container, wired together so AI assistants can read and write your notes and query your calendars.
 
+Supports all Claude clients — iOS, Android, claude.ai web, Claude Code, and Claude Desktop — via OAuth 2.1 (MCP spec compliant).
+
 ---
 
 ## Architecture
 
-Each MCP server gets its own subdomain under `mcp.mydomain.hopto.org`. The nginx ingress controller is the single entry point for all AI agent traffic; cert-manager issues Let's Encrypt TLS certificates per subdomain.
-
 ```
-                    ┌──────────────────────────────────────────────────────────┐
-                    │                    Kubernetes Cluster                     │
-                    │                                                           │
-  AI Agent          │  ┌────────────────────────────────────────────────────┐  │
-  (Claude / other) ─┼─►│             nginx Ingress Controller               │  │
-                    │  │          *.mcp.mydomain.hopto.org  (TLS)            │  │
-                    │  └──────────────────┬──────────────────┬──────────────┘  │
-                    │                     │                  │                  │
-                    │          ┌──────────┘                  └──────────┐       │
-                    │          ▼                                        ▼       │
-                    │  ┌──────────────────────────────┐  ┌───────────────────────┐  │
-                    │  │      mcp-obsidian pod         │  │     mcp-calendar      │  │
-                    │  │  obsidian.mcp.mydomain…       │  │ calendar.mcp.mydomain…│  │
-                    │  │  basic auth + TLS             │  │  basic auth + TLS     │  │
-                    │  │                               │  └──────────┬────────────┘  │
-                    │  │  ┌────────────────────────┐  │             │ CalDAV        │
-                    │  │  │  mcp-obsidian sidecar  │  │             ▼               │
-                    │  │  │  :8000 (MCP/HTTP)      │  │  iCloud / Google /          │
-                    │  │  └──────────┬─────────────┘  │  Nextcloud (external)       │
-                    │  │             │ REST API        │                             │
-                    │  │             │ 127.0.0.1:27124 │                             │
-                    │  │  ┌──────────▼─────────────┐  │                             │
-                    │  │  │  Obsidian + REST plugin │  │                             │
-                    │  │  │  :3000/:3001 (KasmVNC)  │  │                             │
-                    │  │  └──────────┬──────────────┘  │                             │
-                    │  │             │ PVC             │                             │
-                    │  └────────────────────────────────┘                            │
-                    │               │                                                │
-                    │          vault volume                                           │
-                    └────────────────────────────────────────────────────────────────┘
+Claude (any client)
+    │
+    ├─ OAuth dance ──────────────────────────► Dex  (auth.mcp.<domain>)
+    │                                           ↑ GitHub login upstream
+    │
+    └─ POST /mcp + Bearer JWT ───────────────► nginx ingress
+                                                ├── /.well-known/* ──► well-known-server (no auth)
+                                                └── /               ──► oauth2-proxy (JWT validation)
+                                                                         └──► MCP service
 ```
 
-**Why the sidecar pattern?** The Obsidian Local REST API plugin binds only to `127.0.0.1:27124` — it does not listen on `0.0.0.0`. The mcp-obsidian server must therefore run as a sidecar in the same pod so it can reach the plugin over the shared loopback interface.
+MCP services:
+- `obsidian.mcp.<domain>` → mcp-obsidian pod (Obsidian + sidecar)
+- `calendar.mcp.<domain>` → mcp-calendar pod
 
----
-
-## Components
-
-### `mcp-obsidian` pod
-
-Two containers deployed together via the `chart/mcp-obsidian` Helm chart.
-
-**obsidian container** — runs [linuxserver/obsidian](https://hub.docker.com/r/linuxserver/obsidian) (Obsidian desktop app in a KasmVNC container) with the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) community plugin.
-
-| Detail | Value |
-|---|---|
-| Image | `lscr.io/linuxserver/obsidian:latest` |
-| REST API port | `27124` (HTTPS, self-signed, loopback only) |
-| VNC HTTP port | `3000` (bootstrap only — kubectl port-forward) |
-| VNC HTTPS port | `3001` (bootstrap only) |
-| Vault path | `/config/obsidian/<vault-name>` |
-| Persistence | `PersistentVolumeClaim` |
-
-**mcp-obsidian sidecar** — runs `ghcr.io/jakobkolb/mcp-obsidian`, exposes 13 MCP tools for reading, writing, searching, and patching notes. Reaches Obsidian over `127.0.0.1:27124` (shared pod network namespace).
-
-| Detail | Value |
-|---|---|
-| Image | `ghcr.io/jakobkolb/mcp-obsidian:latest` |
-| MCP port | `8000` (HTTP, exposed via ingress) |
-| `OBSIDIAN_HOST` | `127.0.0.1` (loopback — same pod) |
-| `OBSIDIAN_PORT` | `27124` |
-| `OBSIDIAN_PROTOCOL` | `https` |
-| `OBSIDIAN_API_KEY` | from `mcp-obsidian.secret.yaml` → K8s Secret |
-
-### `mcp-calendar` — Calendar MCP server
-
-Source: `ghcr.io/jakobkolb/mcp-calendar`  
-Chart: `chart/mcp-server` (vendored from jakobkolb/mcp-servers)  
-Ingress host: `calendar.mcp.mydomain.hopto.org`
-
-Unified CalDAV interface across iCloud, Google Calendar, and Nextcloud.
-
-| Config key | Source | Value |
-|---|---|---|
-| `CALENDAR_CONFIG` | `env` | `/config/config.yaml` |
-| calendar credentials YAML | `configFile.content` → K8s Secret → mounted file | see Secrets section |
+**Why the sidecar pattern?** The Obsidian Local REST API plugin binds only to `127.0.0.1:27124`. The mcp-obsidian server must run as a sidecar in the same pod to reach it over the shared loopback interface.
 
 ---
 
 ## Repository Layout
 
 ```
-knowledge-base/
-├── README.md
-├── mcp-obsidian-test-report.md        ← integration test results
-├── .gitignore                         ← ignores *.secret.yaml and .claude/
-└── chart/
-    ├── mcp-server/                    ← vendored from jakobkolb/mcp-servers
-    │   ├── Chart.yaml
-    │   ├── values.yaml
-    │   └── templates/
-    │       ├── _helpers.tpl
-    │       ├── configmap.yaml         ← emits a Secret for configFile content
-    │       ├── deployment.yaml
-    │       ├── ingress.yaml
-    │       ├── secret.yaml
-    │       ├── service.yaml
-    │       └── NOTES.txt
-    ├── mcp-obsidian/                  ← chart for the mcp-obsidian pod (+ mcp-obsidian sidecar)
-    │   ├── Chart.yaml
-    │   ├── values.yaml
-    │   └── templates/
-    │       ├── _helpers.tpl
-    │       ├── deployment.yaml        ← two containers: obsidian + mcp-obsidian
-    │       ├── ingress.yaml           ← routes subdomain → mcp-obsidian :8000
-    │       ├── secret.yaml            ← OBSIDIAN_API_KEY
-    │       ├── service.yaml
-    │       ├── pvc.yaml
-    │       └── NOTES.txt
-    └── values/
-        ├── mcp-obsidian.yaml          ← non-secret values for mcp-obsidian release
-        ├── mcp-obsidian.secret.yaml   ← secret values (gitignored)
-        ├── mcp-calendar.yaml          ← non-secret values for mcp-calendar release
-        └── mcp-calendar.secret.yaml   ← secret values (gitignored)
+chart/
+├── Chart.yaml              ← umbrella chart (mcp-obsidian, mcp-calendar, dex, oauth2-proxy)
+├── values.yaml             ← all non-secret config; set global.baseDomain here
+├── values.secret.yaml      ← gitignored; credentials and secrets
+├── charts/
+│   ├── mcp-obsidian/       ← chart for Obsidian pod + mcp-obsidian sidecar
+│   └── mcp-server/         ← generic MCP server chart (used for calendar)
+└── templates/
+    ├── _helpers.tpl         ← hostname helpers (baseDomain → full hostnames)
+    ├── ingress.yaml         ← all ingress rules; hostnames built from global.baseDomain
+    ├── secrets.yaml         ← K8s Secrets created from values.secret.yaml
+    └── well-known.yaml      ← RFC 9728 oauth-protected-resource server
 ```
 
 ---
 
-## Secrets and Configuration
+## Configuration
 
-The pattern is:
-- `values/<release>.yaml` — committed; all non-sensitive config
-- `values/<release>.secret.yaml` — **gitignored**; credentials only, merged at deploy time with `-f`
+### Domain
 
-### `values/mcp-obsidian.secret.yaml`
+Set once in `chart/values.yaml`:
 
 ```yaml
-mcp:
-  secretEnv:
-    OBSIDIAN_API_KEY: ""    # from Local REST API plugin settings (see bootstrap below)
+global:
+  baseDomain: mydomain.hopto.org      # all hosts become *.mcp.<baseDomain>
+  authServerUrl: https://auth.mcp.mydomain.hopto.org   # must match auth.mcp.<baseDomain>
 ```
 
-### `values/mcp-calendar.secret.yaml`
+All MCP ingress hostnames and the well-known server are derived from `baseDomain` automatically. When changing domains, also update the `dex.config.issuer`, `dex.config.connectors[0].config.redirectURI`, and `oauth2-proxy.extraArgs.oidc-issuer-url` fields in `values.yaml` — they contain the auth URL and can't be templated because they're consumed by third-party charts.
+
+### Secrets (`chart/values.secret.yaml`)
 
 ```yaml
-# Calendar credentials — stored in a K8s Secret and mounted as /config/config.yaml
-configFile:
-  content: |
-    calendars:
-      - type: icloud
-        name: personal
-        username: user@icloud.com
-        password: ""          # iCloud app-specific password
+global:
+  secrets:
+    githubClientId: ""        # GitHub OAuth App → Client ID
+    githubClientSecret: ""    # GitHub OAuth App → Client Secret
+    dexClientSecret: ""       # shared: Dex staticClient + oauth2-proxy (generate randomly)
+    cookieSecret: ""          # oauth2-proxy cookie secret (generate randomly)
 
-      - type: google
-        name: work
-        username: user@gmail.com
-        password: ""          # Google app-specific password
+mcp-obsidian:
+  mcp:
+    secretEnv:
+      OBSIDIAN_API_KEY: ""    # from Local REST API plugin settings (see bootstrap below)
 
-      - type: nextcloud
-        name: shared
-        url: https://cloud.example.com
-        username: alice
-        password: ""
-        calendar_name: ""     # optional: restrict to one calendar
-        verify_ssl: true
-```
-
-> **iCloud:** Generate an app-specific password at appleid.apple.com → Security → App-Specific Passwords. Use your iCloud email as `username`.
->
-> **Google:** Enable 2-Step Verification, then generate a password at myaccount.google.com → Security → App passwords. Select "Other" as the app type.
->
-> **Nextcloud:** Use your account password or create a dedicated app token under Settings → Security → Devices & Sessions.
-
-### Obsidian API key bootstrap
-
-The API key is generated by the Local REST API plugin on first launch. One-time setup:
-
-1. Deploy the `mcp-obsidian` release (without the secret file — the sidecar will crash-loop until the key is set, which is fine).
-2. Port-forward the KasmVNC port and open it in a browser:
-   ```bash
-   kubectl port-forward -n knowledge-base svc/mcp-obsidian 3000:3000
-   # open http://localhost:3000
-   ```
-3. Complete first-run Obsidian setup, install and enable the Local REST API community plugin.
-4. Copy the generated API key from the plugin settings panel.
-5. Add it to `values/mcp-obsidian.secret.yaml` and redeploy:
-   ```bash
-   helm upgrade mcp-obsidian ./chart/mcp-obsidian \
-     -f chart/values/mcp-obsidian.yaml \
-     -f chart/values/mcp-obsidian.secret.yaml \
-     --namespace knowledge-base
-   ```
-
-The key is stable across pod restarts as long as the vault PVC (which includes `.obsidian/plugins/`) is preserved.
-
----
-
-## Deployment
-
-```bash
-NS=knowledge-base
-
-# 1. Obsidian vault + mcp-obsidian sidecar (after completing API key bootstrap)
-helm upgrade --install mcp-obsidian ./chart/mcp-obsidian \
-  -f chart/values/mcp-obsidian.yaml \
-  -f chart/values/mcp-obsidian.secret.yaml \
-  --namespace $NS --create-namespace
-
-# 2. mcp-calendar
-helm upgrade --install mcp-calendar ./chart/mcp-server \
-  -f chart/values/mcp-calendar.yaml \
-  -f chart/values/mcp-calendar.secret.yaml \
-  --namespace $NS
+mcp-calendar:
+  configFile:
+    content: |
+      calendars:
+        - type: icloud
+          name: personal
+          username: user@icloud.com
+          password: ""          # app-specific password from appleid.apple.com
+        - type: google
+          name: work
+          username: user@gmail.com
+          password: ""          # app password from myaccount.google.com
+        - type: nextcloud
+          name: shared
+          url: https://cloud.example.com
+          username: alice
+          password: ""
+          calendar_name: ""
+          verify_ssl: true
 ```
 
 ---
@@ -221,16 +103,90 @@ helm upgrade --install mcp-calendar ./chart/mcp-server \
 
 - nginx ingress controller
 - cert-manager with a `letsencrypt-prod` `ClusterIssuer`
-- `mydomain.hopto.org` DNS wildcard or explicit records pointing to the ingress load balancer IP
-- Basic auth secrets created before first deploy:
+- DNS records pointing `*.mcp.<baseDomain>` to the ingress load balancer IP
+
+### One-time secret setup
+
+**1. Create a GitHub OAuth App**
+- Homepage URL: `https://auth.mcp.<baseDomain>`
+- Authorization callback URL: `https://auth.mcp.<baseDomain>/callback`
+
+**2. Generate random secrets**
+```bash
+openssl rand -base64 32   # → dexClientSecret
+openssl rand -base64 32   # → cookieSecret
+```
+
+**3. Fill in `chart/values.secret.yaml`** with the GitHub credentials and generated secrets.
+
+---
+
+## Deployment
 
 ```bash
-# htpasswd utility from apache2-utils / httpd-tools
-htpasswd -c auth mcp
-kubectl create secret generic mcp-obsidian-basic-auth \
-  --from-file=auth -n knowledge-base
-kubectl create secret generic mcp-calendar-basic-auth \
-  --from-file=auth -n knowledge-base
+helm repo add dex https://charts.dex-idp.io
+helm repo add oauth2-proxy https://oauth2-proxy.github.io/manifests
+helm repo update
+
+helm dependency update chart/
+
+helm upgrade --install knowledge-base chart/ \
+  -f chart/values.yaml \
+  -f chart/values.secret.yaml
+```
+
+### Connecting Claude clients
+
+**Claude.ai / Claude iOS / Claude Android:**
+1. Settings → Integrations → Add Custom Connector
+2. Name: Obsidian, URL: `https://obsidian.mcp.<baseDomain>/mcp`
+3. Advanced → OAuth Client ID: `claude-mcp`, OAuth Client Secret: `<dexClientSecret>`
+4. Authenticate via GitHub
+5. Repeat for Calendar (`https://calendar.mcp.<baseDomain>/mcp`)
+
+**Claude Code / Claude Desktop:**
+Add to `~/.claude/settings.json` — Claude handles the OAuth browser flow automatically:
+```json
+{
+  "mcpServers": {
+    "obsidian": { "type": "http", "url": "https://obsidian.mcp.<baseDomain>/mcp" },
+    "calendar": { "type": "http", "url": "https://calendar.mcp.<baseDomain>/mcp" }
+  }
+}
+```
+
+---
+
+## Obsidian API key bootstrap
+
+The API key is generated by the Local REST API plugin on first launch. One-time setup:
+
+1. Deploy without the API key — the mcp-obsidian sidecar will crash-loop until it's set.
+2. Port-forward the KasmVNC port and open it in a browser:
+   ```bash
+   kubectl port-forward svc/knowledge-base-mcp-obsidian 3000:3000
+   # open http://localhost:3000
+   ```
+3. Complete first-run Obsidian setup, install the **Local REST API** community plugin.
+4. Copy the generated API key from the plugin settings panel.
+5. Add it to `chart/values.secret.yaml` and redeploy.
+
+The key is stable across pod restarts as long as the vault PVC (which includes `.obsidian/plugins/`) is preserved.
+
+---
+
+## Verification
+
+```bash
+# Dex OIDC discovery
+curl https://auth.mcp.<baseDomain>/.well-known/openid-configuration
+
+# RFC 9728 resource metadata — must return JSON without auth
+curl https://obsidian.mcp.<baseDomain>/.well-known/oauth-protected-resource
+curl https://calendar.mcp.<baseDomain>/.well-known/oauth-protected-resource
+
+# Unauthenticated MCP request — must return 401 (Bearer challenge, not Basic)
+curl -i https://obsidian.mcp.<baseDomain>/mcp
 ```
 
 ---

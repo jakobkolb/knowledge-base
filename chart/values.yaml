@@ -1,0 +1,120 @@
+global:
+  # ── Edit these when moving to a different domain ─────────────────────────
+  baseDomain: jakobjkolb.xyz      # all MCP hosts become *.mcp.<baseDomain>
+  clusterIssuer: letsencrypt-prod
+
+  # authServerUrl must equal https://auth.mcp.<baseDomain>
+  # Set explicitly because third-party charts (Dex, oauth2-proxy) consume it
+  # as a plain string — Helm values don't support self-referencing.
+  authServerUrl: https://auth.mcp.jakobjkolb.xyz
+
+  secrets: {}   # all secret fields populated in values.secret.yaml
+
+
+# ── mcp-obsidian ─────────────────────────────────────────────────────────────
+mcp-obsidian:
+  image:
+    repository: lscr.io/linuxserver/obsidian
+    tag: latest
+    pullPolicy: IfNotPresent
+  env:
+    PUID: "1000"
+    PGID: "1000"
+    TZ: Europe/Berlin
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  mcp:
+    image:
+      repository: ghcr.io/jakobkolb/mcp-obsidian
+      tag: latest
+      pullPolicy: IfNotPresent
+    env:
+      OBSIDIAN_HOST: "127.0.0.1"
+      OBSIDIAN_PORT: "27124"
+      OBSIDIAN_PROTOCOL: https
+    ingress:
+      enabled: false    # umbrella chart owns all ingresses
+
+
+# ── mcp-calendar (mcp-server chart aliased as mcp-calendar) ──────────────────
+mcp-calendar:
+  nameOverride: mcp-calendar    # makes service name <release>-mcp-calendar
+  image:
+    repository: ghcr.io/jakobkolb/mcp-calendar
+    tag: latest
+    pullPolicy: IfNotPresent
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  env:
+    CALENDAR_CONFIG: /config/config.yaml
+  configFile:
+    enabled: true
+    mountPath: /config/config.yaml
+    content: ""       # set in values.secret.yaml
+
+
+# ── Dex (OAuth 2.1 authorization server) ─────────────────────────────────────
+dex:
+  config:
+    # When changing domain: update issuer and connectors[0].config.redirectURI
+    # to match global.authServerUrl (https://auth.mcp.<baseDomain>)
+    issuer: https://auth.mcp.jakobjkolb.xyz
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
+    web:
+      http: 0.0.0.0:5556
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: $GITHUB_CLIENT_ID
+          clientSecret: $GITHUB_CLIENT_SECRET
+          redirectURI: https://auth.mcp.jakobjkolb.xyz/callback
+    oauth2:
+      skipApprovalScreen: true
+    staticClients:
+      - id: claude-mcp
+        name: Claude MCP
+        secret: $DEX_CLIENT_SECRET
+        redirectURIs:
+          - https://claude.ai/api/mcp/auth_callback
+  envFrom:
+    - secretRef:
+        name: dex-github-client   # created by templates/secrets.yaml
+  envVars:
+    - name: DEX_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: dex-static-client
+          key: clientSecret
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  serviceAccount:
+    create: true
+  rbac:
+    create: true
+
+
+# ── oauth2-proxy (internal Bearer JWT validator) ──────────────────────────────
+oauth2-proxy:
+  extraArgs:
+    provider: oidc
+    # When changing domain: update oidc-issuer-url to match global.authServerUrl
+    oidc-issuer-url: https://auth.mcp.jakobjkolb.xyz
+    upstream: file:///dev/null      # external-auth mode only — no reverse proxying
+    email-domain: "*"
+    skip-jwt-bearer-tokens: "true"  # validate Bearer JWTs directly (no session cookie)
+    skip-provider-button: "true"
+    http-address: 0.0.0.0:4180
+  existingSecret: oauth2-proxy      # created by templates/secrets.yaml
+  service:
+    type: ClusterIP
+    portNumber: 4180
+  ingress:
+    enabled: false    # internal only — nginx reaches it via cluster DNS

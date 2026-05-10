@@ -43,19 +43,9 @@ mcp:
     OBSIDIAN_HOST: "127.0.0.1"   # loopback — same pod network namespace
     OBSIDIAN_PORT: "27124"
     OBSIDIAN_PROTOCOL: https
-  # OBSIDIAN_API_KEY — set in obsidian.secret.yaml
   secretEnv: {}
   ingress:
-    enabled: true
-    className: nginx
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-      nginx.ingress.kubernetes.io/auth-type: basic
-      nginx.ingress.kubernetes.io/auth-secret: mcp-obsidian-basic-auth
-      nginx.ingress.kubernetes.io/auth-realm: "MCP Authentication Required"
-    host: obsidian.mcp.mydomain.hopto.org
-    tls: true
-    tlsSecretName: ""
+    enabled: false    # umbrella chart owns all ingresses
   resources:
     requests:
       cpu: 50m

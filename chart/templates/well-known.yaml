@@ -1,0 +1,102 @@
+{{- $base := .Values.global.baseDomain -}}
+{{- $issuer := .Values.global.clusterIssuer | default "letsencrypt-prod" -}}
+{{- $authServerUrl := .Values.global.authServerUrl -}}
+{{- $rn := .Release.Name -}}
+{{- $wkName := printf "%s-well-known" $rn -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $wkName }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  default.conf: |
+    server {
+        listen 80;
+        location = /.well-known/oauth-protected-resource {
+            default_type application/json;
+            return 200 '{"resource":"https://$host","authorization_servers":["{{ $authServerUrl }}"]}';
+        }
+        location / { return 404; }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $wkName }}
+  labels:
+    app.kubernetes.io/name: {{ $wkName }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $wkName }}
+  template:
+    metadata:
+      labels:
+        app: {{ $wkName }}
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d
+          readinessProbe:
+            httpGet:
+              path: /.well-known/oauth-protected-resource
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $wkName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $wkName }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  selector:
+    app: {{ $wkName }}
+  ports:
+    - port: 80
+      targetPort: 80
+---
+{{/* One ingress per MCP hostname — /.well-known prefix, no auth annotation,
+     reuses the same TLS secret as the main ingress for that hostname */}}
+{{- range $sub := list "obsidian" "calendar" }}
+{{- $host := printf "%s.mcp.%s" $sub $base }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $rn }}-{{ $sub }}-well-known
+  labels:
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ $issuer }}
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [{{ $host }}]
+      secretName: {{ $rn }}-{{ $sub }}-tls
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /.well-known
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $wkName }}
+                port:
+                  number: 80
+---
+{{- end }}
