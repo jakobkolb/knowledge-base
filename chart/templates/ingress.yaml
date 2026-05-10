@@ -37,6 +37,7 @@ spec:
 
 {{/* Dex (OAuth AS): no auth */}}
 {{- $authHost := printf "auth.mcp.%s" $base }}
+{{- $dexInternal := printf "http://%s-dex.%s.svc.cluster.local:5556" $rn .Release.Namespace }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -46,6 +47,10 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
   annotations:
     cert-manager.io/cluster-issuer: {{ $issuer }}
+    nginx.ingress.kubernetes.io/server-snippet: |
+      location = /.well-known/oauth-authorization-server {
+        proxy_pass {{ $dexInternal }}/.well-known/openid-configuration;
+      }
 spec:
   ingressClassName: nginx
   tls:
