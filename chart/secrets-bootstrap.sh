@@ -13,16 +13,30 @@ NAMESPACE="${NAMESPACE:-default}"
 RELEASE="${RELEASE:-kb}"            # must match the Helm release name in ArgoCD
 
 # ── Fill in real values here ─────────────────────────────────────────────────
-GITHUB_CLIENT_ID=""
-GITHUB_CLIENT_SECRET=""
-DEX_CLIENT_SECRET=""        # shared between Dex staticClient and oauth2-proxy
-COOKIE_SECRET=""            # random 32+ chars: openssl rand -base64 32
-OBSIDIAN_API_KEY=""
+GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:-}"
+GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:-}"
+DEX_CLIENT_SECRET="${DEX_CLIENT_SECRET:-}"   # shared between Dex staticClient and oauth2-proxy
+COOKIE_SECRET="${COOKIE_SECRET:-}"           # random 32+ chars: openssl rand -base64 32
+OBSIDIAN_API_KEY="${OBSIDIAN_API_KEY:-}"
 
 # Registry credentials (leave blank to skip)
 REGISTRY_SERVER="ghcr.io"
-REGISTRY_USERNAME=""
-REGISTRY_PASSWORD=""        # personal access token with read:packages
+REGISTRY_USERNAME="${REGISTRY_USERNAME:-}"
+REGISTRY_PASSWORD="${REGISTRY_PASSWORD:-}"   # personal access token with read:packages
+
+# ── Validate required values ──────────────────────────────────────────────────
+missing=()
+[[ -z "$GITHUB_CLIENT_ID" ]]     && missing+=("GITHUB_CLIENT_ID")
+[[ -z "$GITHUB_CLIENT_SECRET" ]] && missing+=("GITHUB_CLIENT_SECRET")
+[[ -z "$DEX_CLIENT_SECRET" ]]    && missing+=("DEX_CLIENT_SECRET")
+[[ -z "$COOKIE_SECRET" ]]        && missing+=("COOKIE_SECRET")
+[[ -z "$OBSIDIAN_API_KEY" ]]     && missing+=("OBSIDIAN_API_KEY")
+if (( ${#missing[@]} > 0 )); then
+  echo "ERROR: required variables not set: ${missing[*]}" >&2
+  echo "Pass them as environment variables:" >&2
+  echo "  NAMESPACE=mcp RELEASE=knowledge-base GITHUB_CLIENT_ID=... $(basename "$0")" >&2
+  exit 1
+fi
 
 # Calendar config — heredoc, indented 2 spaces
 CALENDAR_CONFIG=$(cat <<'YAML'

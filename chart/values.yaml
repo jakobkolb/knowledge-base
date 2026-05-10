@@ -91,9 +91,9 @@ dex:
           - https://claude.ai/api/mcp/auth_callback
   envFrom:
     - secretRef:
-        name: dex-github-client   # created by templates/secrets.yaml
+        name: dex-github-client   # secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
     - secretRef:
-        name: dex-static-client   # created by templates/secrets.yaml
+        name: dex-static-client   # secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
 
   ingress:
     enabled: false    # umbrella chart owns all ingresses
@@ -114,7 +114,8 @@ oauth2-proxy:
     skip-jwt-bearer-tokens: "true"  # validate Bearer JWTs directly (no session cookie)
     skip-provider-button: "true"
     http-address: 0.0.0.0:4180
-  existingSecret: oauth2-proxy      # created by templates/secrets.yaml
+  config:
+    existingSecret: oauth2-proxy      # created by secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
   service:
     type: ClusterIP
     portNumber: 4180
