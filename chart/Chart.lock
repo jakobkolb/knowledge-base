@@ -8,5 +8,5 @@ dependencies:
 - name: api-gateway
   repository: file://charts/api-gateway
   version: 0.1.0
-digest: sha256:placeholder-run-helm-dependency-update-to-regenerate
-generated: "2026-05-11T00:00:00Z"
+digest: sha256:37bf3a0f3aada5eb81ddbbb3f3202100460b24fd36ffdfe707a1adc7a9a2bca1
+generated: "2026-05-11T19:20:34.597862482+02:00"
