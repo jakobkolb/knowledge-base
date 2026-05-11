@@ -7,7 +7,7 @@
 dex:
   config:
     # When changing domain: update issuer and connectors[0].config.redirectURI
-    # to match global.authServerUrl (https://auth.mcp.<baseDomain>)
+    # to match global.authServerUrl (https://auth.<baseDomain>)
     issuer: https://auth.mcp.jakobjkolb.xyz
     storage:
       type: kubernetes
@@ -49,7 +49,7 @@ dex:
 oauth2-proxy:
   extraArgs:
     provider: oidc
-    # When changing domain: update oidc-issuer-url to match global.authServerUrl
+    # When changing domain: update oidc-issuer-url to match global.authServerUrl (https://auth.<baseDomain>)
     oidc-issuer-url: https://auth.mcp.jakobjkolb.xyz
     upstream: file:///dev/null      # external-auth mode only — no reverse proxying
     email-domain: "*"

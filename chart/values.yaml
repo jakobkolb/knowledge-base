@@ -1,9 +1,9 @@
 global:
   # ── Edit these when moving to a different domain ─────────────────────────
-  baseDomain: jakobjkolb.xyz      # all MCP hosts become *.mcp.<baseDomain>
+  baseDomain: mcp.jakobjkolb.xyz  # MCP hosts become *.<baseDomain>; auth host becomes auth.<baseDomain>
   clusterIssuer: letsencrypt-prod
 
-  # authServerUrl must equal https://auth.mcp.<baseDomain>
+  # authServerUrl must equal https://auth.<baseDomain>
   # Set explicitly because third-party charts (Dex, oauth2-proxy) consume it
   # as a plain string — Helm values don't support self-referencing.
   authServerUrl: https://auth.mcp.jakobjkolb.xyz
@@ -73,7 +73,7 @@ api-gateway:
   dex:
     config:
       # When changing domain: update issuer and connectors[0].config.redirectURI
-      # to match global.authServerUrl (https://auth.mcp.<baseDomain>)
+      # to match global.authServerUrl (https://auth.<baseDomain>)
       issuer: https://auth.mcp.jakobjkolb.xyz
       storage:
         type: kubernetes
@@ -113,7 +113,7 @@ api-gateway:
   oauth2-proxy:
     extraArgs:
       provider: oidc
-      # When changing domain: update oidc-issuer-url to match global.authServerUrl
+      # When changing domain: update oidc-issuer-url to match global.authServerUrl (https://auth.<baseDomain>)
       oidc-issuer-url: https://auth.mcp.jakobjkolb.xyz
       upstream: file:///dev/null      # external-auth mode only — no reverse proxying
       email-domain: "*"

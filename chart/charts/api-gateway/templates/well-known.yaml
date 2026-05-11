@@ -112,7 +112,7 @@ spec:
 ---
 {{/* /.well-known ingress per MCP hostname — no auth annotation */}}
 {{- range $sub := list "obsidian" "calendar" }}
-{{- $host := printf "%s.mcp.%s" $sub $base }}
+{{- $host := printf "%s.%s" $sub $base }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -143,8 +143,8 @@ spec:
      /.well-known/* prefix beats the Dex ingress's / — openid-configuration is
      proxied to Dex internally; oauth-authorization-server is served as static JSON.
      /auth* prefix also beats / — scope injection is applied before forwarding to Dex.
-     All other auth.mcp.* paths (/token, /keys, /callback) still go to Dex. */}}
-{{- $authHost := printf "auth.mcp.%s" $base }}
+     All other auth.<baseDomain> paths (/token, /keys, /callback) still go to Dex. */}}
+{{- $authHost := printf "auth.%s" $base }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

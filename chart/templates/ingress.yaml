@@ -5,7 +5,7 @@
 
 {{/* MCP services: path /, protected by oauth2-proxy Bearer JWT validation */}}
 {{- range $sub, $chartSvc := dict "obsidian" (printf "%s-mcp-obsidian" $rn) "calendar" (printf "%s-mcp-calendar" $rn) -}}
-{{- $host := printf "%s.mcp.%s" $sub $base -}}
+{{- $host := printf "%s.%s" $sub $base -}}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
