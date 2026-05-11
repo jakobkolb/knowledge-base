@@ -62,6 +62,20 @@ mcp-calendar:
     content: ""       # set in values.secret.yaml
 
 
+# ── mcp-example (smoketest / hello-world MCP server) ─────────────────────────
+mcp-example:
+  nameOverride: mcp-example    # makes service name <release>-mcp-example
+  image:
+    repository: ghcr.io/jakobkolb/example
+    tag: latest
+    pullPolicy: Always
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  env: {}
+  configFile:
+    enabled: false
+
+
 # ── api-gateway (Dex + oauth2-proxy + well-known server) ─────────────────────
 # NOTE for values.secret.yaml maintainers: dex and oauth2-proxy config previously
 # lived at the top level (dex: / oauth2-proxy:).  They now nest under api-gateway:.

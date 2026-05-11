@@ -18,6 +18,10 @@ dependencies:
     version: "0.1.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-calendar
+  - name: mcp-server
+    version: "0.1.0"
+    repository: "file://charts/mcp-server"
+    alias: mcp-example
   - name: api-gateway
     version: "0.1.0"
     repository: "file://charts/api-gateway"
