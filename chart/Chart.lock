@@ -5,11 +5,8 @@ dependencies:
 - name: mcp-server
   repository: file://charts/mcp-server
   version: 0.1.0
-- name: dex
-  repository: https://charts.dexidp.io
-  version: 0.24.0
-- name: oauth2-proxy
-  repository: https://oauth2-proxy.github.io/manifests
-  version: 7.18.0
-digest: sha256:5b9724b3eb659a4016528898ccdcc2dced80c90ff1e67d83b94d6088a5a139ce
-generated: "2026-05-04T16:36:19.925701577+02:00"
+- name: api-gateway
+  repository: file://charts/api-gateway
+  version: 0.1.0
+digest: sha256:37bf3a0f3aada5eb81ddbbb3f3202100460b24fd36ffdfe707a1adc7a9a2bca1
+generated: "2026-05-11T19:20:34.597862482+02:00"

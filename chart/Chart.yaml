@@ -18,9 +18,6 @@ dependencies:
     version: "0.1.0"
     repository: "file://charts/mcp-server"
     alias: mcp-calendar
-  - name: dex
-    version: "0.x"
-    repository: "https://charts.dexidp.io"
-  - name: oauth2-proxy
-    version: "7.x"
-    repository: "https://oauth2-proxy.github.io/manifests"
+  - name: api-gateway
+    version: "0.1.0"
+    repository: "file://charts/api-gateway"

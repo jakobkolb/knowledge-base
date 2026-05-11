@@ -3,16 +3,16 @@
 {{- end -}}
 
 {{/*
-Construct <subdomain>.mcp.<baseDomain>
+Construct <subdomain>.<baseDomain>  (baseDomain already contains the "mcp" segment)
 Usage: {{ include "knowledge-base.mcpHost" (dict "sub" "obsidian" "Values" .Values) }}
 */}}
 {{- define "knowledge-base.mcpHost" -}}
-{{- printf "%s.mcp.%s" .sub .Values.global.baseDomain -}}
+{{- printf "%s.%s" .sub .Values.global.baseDomain -}}
 {{- end -}}
 
 {{/*
-Auth server host: auth.mcp.<baseDomain>
+Auth server host: auth.<baseDomain>  (baseDomain already contains the "mcp" segment)
 */}}
 {{- define "knowledge-base.authHost" -}}
-{{- printf "auth.mcp.%s" .Values.global.baseDomain -}}
+{{- printf "auth.%s" .Values.global.baseDomain -}}
 {{- end -}}
