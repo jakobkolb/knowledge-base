@@ -16,7 +16,7 @@ dependencies:
     repository: "file://charts/mcp-obsidian"
   - name: mcp-server
     version: "0.1.0"
-    repository: "file://charts/mcp-server"
+    repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-calendar
   - name: api-gateway
     version: "0.1.0"
