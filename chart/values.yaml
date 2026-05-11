@@ -16,35 +16,6 @@ global:
     dockerConfigJson: ""  # base64 .dockerconfigjson; chart creates a Secret named registry-creds
 
 
-# ── mcp-obsidian ─────────────────────────────────────────────────────────────
-mcp-obsidian:
-  image:
-    repository: lscr.io/linuxserver/obsidian
-    tag: latest
-    pullPolicy: IfNotPresent
-  env:
-    PUID: "1000"
-    PGID: "1000"
-    TZ: Europe/Berlin
-    PIXELFLUX_WAYLAND: "false"   # force Xvfb (no GPU needed); image default=true uses labwc which requires /dev/dri
-  persistence:
-    enabled: true
-    size: 10Gi
-    storageClass: ""
-    accessMode: ReadWriteOnce
-  mcp:
-    image:
-      repository: ghcr.io/jakobkolb/mcp-obsidian
-      tag: latest
-      pullPolicy: IfNotPresent
-    env:
-      OBSIDIAN_HOST: "127.0.0.1"
-      OBSIDIAN_PORT: "27124"
-      OBSIDIAN_PROTOCOL: https
-    ingress:
-      enabled: false    # umbrella chart owns all ingresses
-
-
 # ── mcp-calendar (mcp-server chart aliased as mcp-calendar) ──────────────────
 mcp-calendar:
   nameOverride: mcp-calendar    # makes service name <release>-mcp-calendar
@@ -62,6 +33,20 @@ mcp-calendar:
     content: ""       # set in values.secret.yaml
 
 
+# ── mcp-example (smoketest / hello-world MCP server) ─────────────────────────
+mcp-example:
+  nameOverride: mcp-example    # makes service name <release>-mcp-example
+  image:
+    repository: ghcr.io/jakobkolb/example
+    tag: latest
+    pullPolicy: Always
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  env: {}
+  configFile:
+    enabled: false
+
+
 # ── api-gateway (Dex + oauth2-proxy + well-known server) ─────────────────────
 # NOTE for values.secret.yaml maintainers: dex and oauth2-proxy config previously
 # lived at the top level (dex: / oauth2-proxy:).  They now nest under api-gateway:.
@@ -70,6 +55,14 @@ mcp-calendar:
 #   now:  api-gateway.dex.config.connectors[0].config.clientID
 # The global.secrets.* keys are unchanged.
 api-gateway:
+  # MCP endpoints exposed by the api-gateway (auth + /.well-known ingress).
+  # Add a new entry here whenever a new MCP server is added to the umbrella.
+  mcpEndpoints:
+    - subdomain: calendar
+      service: mcp-calendar
+    - subdomain: example
+      service: mcp-example
+
   dex:
     config:
       # When changing domain: update issuer and connectors[0].config.redirectURI

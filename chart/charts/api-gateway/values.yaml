@@ -2,6 +2,20 @@
 # These are the same dex: and oauth2-proxy: sections that previously lived at
 # the top level of the umbrella chart's values.yaml.
 
+# ── MCP endpoints ────────────────────────────────────────────────────────────
+# List of MCP servers the api-gateway should expose.  Each entry generates:
+#   - an authenticated /mcp ingress at <subdomain>.<global.baseDomain>
+#   - a /.well-known ingress at the same host (no auth)
+#
+# Fields per entry:
+#   subdomain  public hostname prefix  (e.g. "calendar" → calendar.<baseDomain>)
+#   service    K8s service name suffix (e.g. "mcp-calendar" → <release>-mcp-calendar)
+#
+# Override this list in the umbrella chart's api-gateway: block.
+mcpEndpoints: []
+# - subdomain: calendar
+#   service: mcp-calendar
+
 
 # ── Dex (OAuth 2.1 authorization server) ─────────────────────────────────────
 dex:
