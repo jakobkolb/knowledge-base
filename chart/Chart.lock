@@ -2,8 +2,11 @@ dependencies:
 - name: mcp-server
   repository: oci://ghcr.io/jakobkolb/charts
   version: 0.1.0
+- name: mcp-server
+  repository: oci://ghcr.io/jakobkolb/charts
+  version: 0.1.0
 - name: api-gateway
   repository: file://charts/api-gateway
   version: 0.1.0
-digest: sha256:37bf3a0f3aada5eb81ddbbb3f3202100460b24fd36ffdfe707a1adc7a9a2bca1
-generated: "2026-05-11T19:20:34.597862482+02:00"
+digest: sha256:0eae664d4d99b1a64046ae174f5c4646da11230187e82b87c9b9b19b19e052f0
+generated: "2026-05-11T23:02:42.726094106+02:00"
