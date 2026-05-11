@@ -1,9 +1,6 @@
 dependencies:
-- name: mcp-obsidian
-  repository: file://charts/mcp-obsidian
-  version: 0.1.0
 - name: mcp-server
-  repository: file://charts/mcp-server
+  repository: oci://ghcr.io/jakobkolb/charts
   version: 0.1.0
 - name: api-gateway
   repository: file://charts/api-gateway
