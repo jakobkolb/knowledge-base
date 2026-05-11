@@ -111,12 +111,12 @@ spec:
       targetPort: 80
 ---
 {{/* /.well-known ingress per MCP hostname — no auth annotation */}}
-{{- range $sub := .Values.mcpSubdomains }}
-{{- $host := printf "%s.%s" $sub $base }}
+{{- range .Values.mcpEndpoints }}
+{{- $host := printf "%s.%s" .subdomain $base }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ $rn }}-{{ $sub }}-well-known
+  name: {{ $rn }}-{{ .subdomain }}-well-known
   labels:
     app.kubernetes.io/managed-by: {{ $.Release.Service }}
   annotations:
@@ -125,7 +125,7 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts: [{{ $host }}]
-      secretName: {{ $rn }}-{{ $sub }}-tls
+      secretName: {{ $rn }}-{{ .subdomain }}-tls
   rules:
     - host: {{ $host }}
       http:

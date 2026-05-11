@@ -55,11 +55,13 @@ mcp-example:
 #   now:  api-gateway.dex.config.connectors[0].config.clientID
 # The global.secrets.* keys are unchanged.
 api-gateway:
-  # MCP subdomain prefixes that get /.well-known ingress rules in the api-gateway.
-  # Add a new entry here whenever a new MCP server subdomain is added.
-  mcpSubdomains:
-    - calendar
-    - example
+  # MCP endpoints exposed by the api-gateway (auth + /.well-known ingress).
+  # Add a new entry here whenever a new MCP server is added to the umbrella.
+  mcpEndpoints:
+    - subdomain: calendar
+      service: mcp-calendar
+    - subdomain: example
+      service: mcp-example
 
   dex:
     config:
