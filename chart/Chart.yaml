@@ -19,6 +19,7 @@ dependencies:
     version: "0.1.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-example
-  - name: api-gateway
+  - name: mcp-oauth-gateway
     version: "0.1.0"
-    repository: "file://charts/api-gateway"
+    repository: "oci://ghcr.io/jakobkolb/charts"
+    alias: api-gateway
