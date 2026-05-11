@@ -2,6 +2,12 @@
 # These are the same dex: and oauth2-proxy: sections that previously lived at
 # the top level of the umbrella chart's values.yaml.
 
+# ── MCP endpoint subdomains ───────────────────────────────────────────────────
+# List of subdomain prefixes that receive /.well-known ingress rules.
+# Each entry produces a host: <entry>.<global.baseDomain>
+# Override in the umbrella chart's api-gateway: block to match your MCP servers.
+mcpSubdomains: []
+
 
 # ── Dex (OAuth 2.1 authorization server) ─────────────────────────────────────
 dex:

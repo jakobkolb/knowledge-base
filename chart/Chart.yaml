@@ -11,9 +11,6 @@ maintainers:
   - name: jakobkolb
 
 dependencies:
-  - name: mcp-obsidian
-    version: "0.1.0"
-    repository: "file://charts/mcp-obsidian"
   - name: mcp-server
     version: "0.1.0"
     repository: "oci://ghcr.io/jakobkolb/charts"

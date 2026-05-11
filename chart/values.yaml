@@ -16,35 +16,6 @@ global:
     dockerConfigJson: ""  # base64 .dockerconfigjson; chart creates a Secret named registry-creds
 
 
-# ── mcp-obsidian ─────────────────────────────────────────────────────────────
-mcp-obsidian:
-  image:
-    repository: lscr.io/linuxserver/obsidian
-    tag: latest
-    pullPolicy: IfNotPresent
-  env:
-    PUID: "1000"
-    PGID: "1000"
-    TZ: Europe/Berlin
-    PIXELFLUX_WAYLAND: "false"   # force Xvfb (no GPU needed); image default=true uses labwc which requires /dev/dri
-  persistence:
-    enabled: true
-    size: 10Gi
-    storageClass: ""
-    accessMode: ReadWriteOnce
-  mcp:
-    image:
-      repository: ghcr.io/jakobkolb/mcp-obsidian
-      tag: latest
-      pullPolicy: IfNotPresent
-    env:
-      OBSIDIAN_HOST: "127.0.0.1"
-      OBSIDIAN_PORT: "27124"
-      OBSIDIAN_PROTOCOL: https
-    ingress:
-      enabled: false    # umbrella chart owns all ingresses
-
-
 # ── mcp-calendar (mcp-server chart aliased as mcp-calendar) ──────────────────
 mcp-calendar:
   nameOverride: mcp-calendar    # makes service name <release>-mcp-calendar
@@ -84,6 +55,12 @@ mcp-example:
 #   now:  api-gateway.dex.config.connectors[0].config.clientID
 # The global.secrets.* keys are unchanged.
 api-gateway:
+  # MCP subdomain prefixes that get /.well-known ingress rules in the api-gateway.
+  # Add a new entry here whenever a new MCP server subdomain is added.
+  mcpSubdomains:
+    - calendar
+    - example
+
   dex:
     config:
       # When changing domain: update issuer and connectors[0].config.redirectURI
