@@ -1,3 +1,4 @@
 chart/values.secret.yaml
 chart/charts/*/charts/
+!chart/charts/api-gateway/charts/
 .claude/
