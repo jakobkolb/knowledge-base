@@ -36,31 +36,3 @@ spec:
                 port:
                   number: 8000
 {{- end }}
-
-{{/* Dex (OAuth AS): no auth — /.well-known is handled by the auth-well-known ingress */}}
-{{- $authHost := printf "auth.mcp.%s" $base }}
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{ $rn }}-dex
-  labels:
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-  annotations:
-    cert-manager.io/cluster-issuer: {{ $issuer }}
-spec:
-  ingressClassName: nginx
-  tls:
-    - hosts: [{{ $authHost }}]
-      secretName: {{ $rn }}-dex-tls
-  rules:
-    - host: {{ $authHost }}
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ $rn }}-dex
-                port:
-                  number: 5556

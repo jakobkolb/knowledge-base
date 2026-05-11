@@ -1,0 +1,9 @@
+dependencies:
+- name: dex
+  repository: https://charts.dexidp.io
+  version: 0.24.0
+- name: oauth2-proxy
+  repository: https://oauth2-proxy.github.io/manifests
+  version: 7.18.0
+digest: sha256:placeholder-run-helm-dependency-update-to-regenerate
+generated: "2026-05-11T00:00:00Z"
