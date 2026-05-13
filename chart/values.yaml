@@ -167,6 +167,7 @@ api-gateway:
       service: mcp-example
     - subdomain: obsidian
       service: mcp-obsidian
+      port: 8080
 
   dex:
     config:
