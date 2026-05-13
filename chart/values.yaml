@@ -88,6 +88,8 @@ mcp-obsidian:
     - name: obsidian-headless
       image: node:22-bookworm-slim
       imagePullPolicy: IfNotPresent
+      securityContext:
+        runAsUser: 1000
       command:
         - /bin/sh
         - -c
@@ -97,7 +99,10 @@ mcp-obsidian:
 
           mkdir -p "${VAULT_PATH}"
           mkdir -p "${HOME}"
-          npm install -g obsidian-headless
+          # Install to HOME (the obsidian-headless-state PVC) so uid=1000 can write
+          # and the install persists across restarts.
+          npm install -g --prefix "${HOME}" obsidian-headless
+          export PATH="${HOME}/bin:${PATH}"
 
           if ! ob sync-list-remote >/dev/null 2>&1; then
             ob login \
