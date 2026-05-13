@@ -19,6 +19,10 @@ dependencies:
     version: "0.1.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-example
+  - name: mcp-server
+    version: "0.3.0"
+    repository: "oci://ghcr.io/jakobkolb/charts"
+    alias: mcp-obsidian
   - name: api-gateway
     version: "0.1.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
