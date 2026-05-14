@@ -49,6 +49,11 @@ mcp-obsidian:
   image:
     repository: ghcr.io/jakobkolb/mcp-obsidian
     pullPolicy: Always
+  podSecurityContext:
+    fsGroup: 1000    # shared GID for vault volume — both containers get write access
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
   ingress:
     enabled: false    # umbrella chart owns all ingresses
   service:
@@ -85,6 +90,9 @@ mcp-obsidian:
     - name: obsidian-headless
       image: node:22-bookworm-slim
       imagePullPolicy: IfNotPresent
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
       command:
         - /bin/sh
         - -c
@@ -94,7 +102,9 @@ mcp-obsidian:
 
           mkdir -p "${VAULT_PATH}"
           mkdir -p "${HOME}"
-          npm install -g obsidian-headless
+          # Install to PVC-backed HOME so uid=1000 can write and it persists across restarts
+          npm install -g --prefix "${HOME}" --cache /tmp/npm-cache obsidian-headless
+          export PATH="${HOME}/bin:${PATH}"
 
           if ! ob sync-list-remote >/dev/null 2>&1; then
             ob login \
