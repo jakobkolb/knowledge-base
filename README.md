@@ -23,6 +23,7 @@ Claude (any client)
 MCP endpoints (configured via `api-gateway.mcpEndpoints`):
 - `calendar.<baseDomain>` → mcp-calendar pod
 - `example.<baseDomain>` → example MCP server (smoketest)
+- `obsidian.<baseDomain>` → mcp-obsidian pod (with obsidian-headless sidecar for vault sync)
 
 ---
 
@@ -44,6 +45,7 @@ chart/
 |---|---|---|
 | `mcp-calendar` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Calendar MCP server |
 | `mcp-example` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Smoketest MCP server |
+| `mcp-obsidian` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Obsidian vault MCP server (with headless sync sidecar) |
 | `api-gateway` | `oci://ghcr.io/jakobkolb/charts/api-gateway` | Dex + oauth2-proxy + well-known server + ingress |
 
 The `api-gateway` chart is maintained at [jakobkolb/mcp-oauth-gateway](https://github.com/jakobkolb/mcp-oauth-gateway).
@@ -75,6 +77,9 @@ api-gateway:
       service: mcp-calendar
     - subdomain: example
       service: mcp-example
+    - subdomain: obsidian
+      service: mcp-obsidian
+      port: 8080     # optional — defaults to 8000 if omitted
 ```
 
 Each entry gets a protected `/mcp` ingress and an unprotected `/.well-known` ingress.
@@ -147,13 +152,15 @@ helm upgrade --install knowledge-base chart/ \
 2. Name: Calendar, URL: `https://calendar.<baseDomain>/mcp`
 3. Advanced → OAuth Client ID: `claude-mcp`, OAuth Client Secret: `<dexClientSecret>`
 4. Authenticate via GitHub
+5. Repeat for `https://obsidian.<baseDomain>/mcp`
 
 **Claude Code / Claude Desktop:**
 Add to `~/.claude/settings.json` — Claude handles the OAuth browser flow automatically:
 ```json
 {
   "mcpServers": {
-    "calendar": { "type": "http", "url": "https://calendar.<baseDomain>/mcp" }
+    "calendar": { "type": "http", "url": "https://calendar.<baseDomain>/mcp" },
+    "obsidian": { "type": "http", "url": "https://obsidian.<baseDomain>/mcp" }
   }
 }
 ```
@@ -168,7 +175,9 @@ curl https://auth.<baseDomain>/.well-known/openid-configuration
 
 # RFC 9728 resource metadata — must return JSON without auth
 curl https://calendar.<baseDomain>/.well-known/oauth-protected-resource
+curl https://obsidian.<baseDomain>/.well-known/oauth-protected-resource
 
 # Unauthenticated MCP request — must return 401 with Bearer challenge
 curl -i https://calendar.<baseDomain>/mcp
+curl -i https://obsidian.<baseDomain>/mcp
 ```
