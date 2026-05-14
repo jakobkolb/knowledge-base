@@ -60,12 +60,12 @@ mcp-obsidian:
     LOG_LEVEL: INFO
   extraPersistentVolumeClaims:
     - name: obsidian-vault
-      storageClassName: standard
+      storageClassName: microk8s-hostpath
       accessModes:
         - ReadWriteOnce
       size: 10Gi
     - name: obsidian-headless-state
-      storageClassName: standard
+      storageClassName: microk8s-hostpath
       accessModes:
         - ReadWriteOnce
       size: 1Gi
