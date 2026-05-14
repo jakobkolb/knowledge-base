@@ -18,7 +18,12 @@ GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:-}"
 DEX_CLIENT_SECRET="${DEX_CLIENT_SECRET:-}"   # shared between Dex staticClient and oauth2-proxy
 COOKIE_SECRET="${COOKIE_SECRET:-}"           # must decode to exactly 16, 24, or 32 bytes — generate with:
                                              #   python3 -c 'import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())'
-OBSIDIAN_API_KEY="${OBSIDIAN_API_KEY:-}"
+
+# Obsidian headless sync credentials (obsidian.md account)
+OBSIDIAN_EMAIL="${OBSIDIAN_EMAIL:-}"
+OBSIDIAN_PASSWORD="${OBSIDIAN_PASSWORD:-}"
+OBSIDIAN_VAULT="${OBSIDIAN_VAULT:-}"             # vault name as shown in Obsidian Sync
+OBSIDIAN_SYNC_PASSWORD="${OBSIDIAN_SYNC_PASSWORD:-}"  # end-to-end encryption password
 
 # Registry credentials (leave blank to skip)
 REGISTRY_SERVER="ghcr.io"
@@ -30,8 +35,11 @@ missing=()
 [[ -z "$GITHUB_CLIENT_ID" ]]     && missing+=("GITHUB_CLIENT_ID")
 [[ -z "$GITHUB_CLIENT_SECRET" ]] && missing+=("GITHUB_CLIENT_SECRET")
 [[ -z "$DEX_CLIENT_SECRET" ]]    && missing+=("DEX_CLIENT_SECRET")
-[[ -z "$COOKIE_SECRET" ]]        && missing+=("COOKIE_SECRET")
-[[ -z "$OBSIDIAN_API_KEY" ]]     && missing+=("OBSIDIAN_API_KEY")
+[[ -z "$COOKIE_SECRET" ]]            && missing+=("COOKIE_SECRET")
+[[ -z "$OBSIDIAN_EMAIL" ]]           && missing+=("OBSIDIAN_EMAIL")
+[[ -z "$OBSIDIAN_PASSWORD" ]]        && missing+=("OBSIDIAN_PASSWORD")
+[[ -z "$OBSIDIAN_VAULT" ]]           && missing+=("OBSIDIAN_VAULT")
+[[ -z "$OBSIDIAN_SYNC_PASSWORD" ]]   && missing+=("OBSIDIAN_SYNC_PASSWORD")
 if (( ${#missing[@]} > 0 )); then
   echo "ERROR: required variables not set: ${missing[*]}" >&2
   echo "Pass them as environment variables:" >&2
@@ -65,8 +73,11 @@ kubectl -n "$NAMESPACE" create secret generic oauth2-proxy \
   --from-literal=cookie-secret="$COOKIE_SECRET" \
   --save-config --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl -n "$NAMESPACE" create secret generic "${RELEASE}-mcp-obsidian-mcp-secrets" \
-  --from-literal=OBSIDIAN_API_KEY="$OBSIDIAN_API_KEY" \
+kubectl -n "$NAMESPACE" create secret generic obsidian-headless-auth \
+  --from-literal=email="$OBSIDIAN_EMAIL" \
+  --from-literal=password="$OBSIDIAN_PASSWORD" \
+  --from-literal=vault="$OBSIDIAN_VAULT" \
+  --from-literal=sync-password="$OBSIDIAN_SYNC_PASSWORD" \
   --save-config --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n "$NAMESPACE" create secret generic "${RELEASE}-mcp-calendar-config" \
