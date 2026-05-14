@@ -48,6 +48,10 @@ mcp-obsidian:
   nameOverride: mcp-obsidian
   image:
     repository: ghcr.io/jakobkolb/mcp-obsidian
+<<<<<<< HEAD
+=======
+    tag: latest
+>>>>>>> 37c50cca280661295111d8e0b128821f6453f0a7
     pullPolicy: Always
   ingress:
     enabled: false    # umbrella chart owns all ingresses
@@ -60,12 +64,20 @@ mcp-obsidian:
     LOG_LEVEL: INFO
   extraPersistentVolumeClaims:
     - name: obsidian-vault
+<<<<<<< HEAD
       storageClassName: standard
+=======
+      storageClassName: microk8s-hostpath
+>>>>>>> 37c50cca280661295111d8e0b128821f6453f0a7
       accessModes:
         - ReadWriteOnce
       size: 10Gi
     - name: obsidian-headless-state
+<<<<<<< HEAD
       storageClassName: standard
+=======
+      storageClassName: microk8s-hostpath
+>>>>>>> 37c50cca280661295111d8e0b128821f6453f0a7
       accessModes:
         - ReadWriteOnce
       size: 1Gi
@@ -85,6 +97,11 @@ mcp-obsidian:
     - name: obsidian-headless
       image: node:22-bookworm-slim
       imagePullPolicy: IfNotPresent
+<<<<<<< HEAD
+=======
+      securityContext:
+        runAsUser: 1000
+>>>>>>> 37c50cca280661295111d8e0b128821f6453f0a7
       command:
         - /bin/sh
         - -c
@@ -94,7 +111,14 @@ mcp-obsidian:
 
           mkdir -p "${VAULT_PATH}"
           mkdir -p "${HOME}"
+<<<<<<< HEAD
           npm install -g obsidian-headless
+=======
+          # Install to HOME (the obsidian-headless-state PVC) so uid=1000 can write
+          # and the install persists across restarts.
+          npm install -g --prefix "${HOME}" obsidian-headless
+          export PATH="${HOME}/bin:${PATH}"
+>>>>>>> 37c50cca280661295111d8e0b128821f6453f0a7
 
           if ! ob sync-list-remote >/dev/null 2>&1; then
             ob login \
