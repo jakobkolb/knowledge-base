@@ -1,3 +1,4 @@
 chart/values.secret.yaml
+chart/Chart.lock
 chart/charts/
 .claude/
