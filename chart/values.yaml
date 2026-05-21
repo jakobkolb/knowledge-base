@@ -232,6 +232,15 @@ api-gateway:
             redirectURI: https://auth.mcp.jakobjkolb.xyz/callback
       oauth2:
         skipApprovalScreen: true
+      expiry:
+        # MCP clients hold tokens passively; 8h (Dex default) causes silent
+        # expiry that leaves connections stuck until manually reconnected.
+        # 72h keeps tokens valid across weekends without requiring re-auth.
+        # signingKeys must be shorter than idTokens — Dex keeps the previous
+        # signing key for one full rotation period as a grace window, so tokens
+        # issued just before a rotation remain valid.
+        idTokens: 72h
+        signingKeys: 12h
       staticClients:
         - id: claude-mcp
           name: Claude MCP
