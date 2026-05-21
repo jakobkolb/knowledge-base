@@ -30,6 +30,23 @@ mcp-calendar:
     enabled: true
     mountPath: /config/config.yaml
     content: ""       # set in values.secret.yaml
+  # Calico/Felix periodically re-evaluates pod endpoint routes, briefly making
+  # the pod IP unreachable. Raise failureThreshold so transient EINVAL errors
+  # don't trigger a liveness kill and crash-loop the pod.
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
 
 
 # ── mcp-example (smoketest / hello-world MCP server) ─────────────────────────
