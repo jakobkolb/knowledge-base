@@ -30,6 +30,23 @@ mcp-calendar:
     enabled: true
     mountPath: /config/config.yaml
     content: ""       # set in values.secret.yaml
+  # Calico/Felix periodically re-evaluates pod endpoint routes, briefly making
+  # the pod IP unreachable. Raise failureThreshold so transient EINVAL errors
+  # don't trigger a liveness kill and crash-loop the pod.
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
 
 
 # ── mcp-example (smoketest / hello-world MCP server) ─────────────────────────
@@ -49,6 +66,11 @@ mcp-obsidian:
   image:
     repository: ghcr.io/jakobkolb/mcp-obsidian
     pullPolicy: Always
+  podSecurityContext:
+    fsGroup: 1000    # shared GID for vault volume — both containers get write access
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
   ingress:
     enabled: false    # umbrella chart owns all ingresses
   service:
@@ -79,12 +101,33 @@ mcp-obsidian:
     - name: obsidian-headless-state
       persistentVolumeClaim:
         claimName: obsidian-headless-state
+  # Calico/Felix periodically re-evaluates pod endpoint routes, briefly making
+  # the pod IP unreachable. Raise failureThreshold so transient EINVAL errors
+  # don't trigger a liveness kill and crash-loop the pod. Python handles SIGTERM
+  # gracefully (uvicorn sets should_exit=True) so these restarts appear as exit 0.
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
   # Requires a secret named obsidian-headless-auth with keys:
   # email, password, vault, sync-password.
   extraContainers:
     - name: obsidian-headless
       image: node:22-bookworm-slim
       imagePullPolicy: IfNotPresent
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
       command:
         - /bin/sh
         - -c
@@ -94,7 +137,9 @@ mcp-obsidian:
 
           mkdir -p "${VAULT_PATH}"
           mkdir -p "${HOME}"
-          npm install -g obsidian-headless
+          # Install to PVC-backed HOME so uid=1000 can write and it persists across restarts
+          npm install -g --prefix "${HOME}" --cache /tmp/npm-cache obsidian-headless
+          export PATH="${HOME}/bin:${PATH}"
 
           if ! ob sync-list-remote >/dev/null 2>&1; then
             ob login \
@@ -187,6 +232,15 @@ api-gateway:
             redirectURI: https://auth.mcp.jakobjkolb.xyz/callback
       oauth2:
         skipApprovalScreen: true
+      expiry:
+        # MCP clients hold tokens passively; 8h (Dex default) causes silent
+        # expiry that leaves connections stuck until manually reconnected.
+        # 72h keeps tokens valid across weekends without requiring re-auth.
+        # signingKeys must be shorter than idTokens — Dex keeps the previous
+        # signing key for one full rotation period as a grace window, so tokens
+        # issued just before a rotation remain valid.
+        idTokens: 72h
+        signingKeys: 12h
       staticClients:
         - id: claude-mcp
           name: Claude MCP

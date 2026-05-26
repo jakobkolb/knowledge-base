@@ -108,6 +108,16 @@ mcp-calendar:
           password: ""          # app password from myaccount.google.com
 ```
 
+The obsidian-headless sidecar requires a separate K8s Secret (not in `values.secret.yaml` since it's managed by `secrets-bootstrap.sh`):
+
+```
+obsidian-headless-auth:
+  email:          # obsidian.md account email
+  password:       # obsidian.md account password
+  vault:          # vault name as shown in Obsidian Sync
+  sync-password:  # end-to-end encryption password for the vault
+```
+
 ---
 
 ## Prerequisites
