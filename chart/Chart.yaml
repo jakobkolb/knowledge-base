@@ -12,7 +12,7 @@ maintainers:
 
 dependencies:
   - name: mcp-server
-    version: "0.5.0"
+    version: "0.5.1"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-calendar
   - name: mcp-server
