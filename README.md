@@ -160,7 +160,7 @@ helm upgrade --install knowledge-base chart/ \
 **Claude.ai / Claude iOS / Claude Android:**
 1. Settings → Integrations → Add Custom Connector
 2. Name: Calendar, URL: `https://calendar.<baseDomain>/mcp`
-3. Advanced → OAuth Client ID: `claude-mcp`, OAuth Client Secret: `<dexClientSecret>`
+3. Advanced → OAuth Client ID: `claude-mcp` (leave OAuth Client Secret empty — claude-mcp is a public PKCE client)
 4. Authenticate via GitHub
 5. Repeat for `https://obsidian.<baseDomain>/mcp`
 
