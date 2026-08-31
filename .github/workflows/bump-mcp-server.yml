@@ -1,0 +1,75 @@
+name: Bump mcp-server dependency
+
+on:
+  repository_dispatch:
+    types: [bump-mcp-server]
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Bump the affected dependency versions
+        id: bump
+        env:
+          VERSION: ${{ github.event.client_payload.version }}
+          SERVERS: ${{ join(github.event.client_payload.servers, ' ') }}
+        run: |
+          # mcp-servers only knows its own directory names (servers/<name>);
+          # the alias used in Chart.yaml is knowledge-base's concern.
+          declare -A ALIAS=(
+            [mcp-calendar]=mcp-calendar
+            [mcp-obsidian]=mcp-obsidian
+            [example]=mcp-example
+          )
+
+          CHANGED=()
+          for s in $SERVERS; do
+            alias="${ALIAS[$s]:-}"
+            if [ -z "$alias" ]; then
+              echo "::warning::no alias mapping for server '$s', skipping"
+              continue
+            fi
+            if ! yq eval ".dependencies[] | select(.alias == \"$alias\")" chart/Chart.yaml | grep -q .; then
+              echo "::warning::no Chart.yaml dependency with alias '$alias', skipping"
+              continue
+            fi
+            yq eval "(.dependencies[] | select(.alias == \"$alias\") | .version) = \"$VERSION\"" -i chart/Chart.yaml
+            CHANGED+=("$alias")
+          done
+
+          echo "aliases=${CHANGED[*]}" >> "$GITHUB_OUTPUT"
+
+      - name: Open PR
+        if: steps.bump.outputs.aliases != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALIASES: ${{ steps.bump.outputs.aliases }}
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          SLUG=$(echo "$ALIASES" | tr ' ' '-')
+          BRANCH="bump/${SLUG}-${VERSION}"
+          TITLE="Bump ${ALIASES// /, } to ${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add chart/Chart.yaml
+          git commit -m "$TITLE"
+          git push origin "$BRANCH"
+
+          printf 'Automated dependency bump, triggered by a new mcp-servers release (version %s).\n\nAffected aliases: %s\n\nMerging this deploys to staging automatically via ArgoCD.\n' \
+            "$VERSION" "$ALIASES" > /tmp/pr-body.md
+
+          gh pr create --base main --head "$BRANCH" --title "$TITLE" --body-file /tmp/pr-body.md
