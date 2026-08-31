@@ -233,18 +233,24 @@ api-gateway:
       oauth2:
         skipApprovalScreen: true
       expiry:
-        # MCP clients hold tokens passively; 8h (Dex default) causes silent
-        # expiry that leaves connections stuck until manually reconnected.
-        # 72h keeps tokens valid across weekends without requiring re-auth.
-        # signingKeys must be shorter than idTokens — Dex keeps the previous
-        # signing key for one full rotation period as a grace window, so tokens
-        # issued just before a rotation remain valid.
-        idTokens: 72h
+        # Clients now hold a refresh token and renew silently, so the 72h
+        # workaround for silent expiry is no longer needed.
+        idTokens: 8h
+        # Dex keeps a demoted signing key in the JWKS for idTokens after each
+        # rotation, so signingKeys does not need to exceed idTokens.
         signingKeys: 12h
+        refreshTokens:
+          # Tolerate client retries and concurrent refreshes; outside this
+          # window a replayed token is rejected and the client is logged out.
+          reuseInterval: 30s
+          # Re-authenticate only after a genuinely long idle gap.
+          validIfNotUsedFor: 2160h
       staticClients:
+        # Public client: authenticates with PKCE alone, matching what /register
+        # hands out. A secret here makes Dex reject PKCE-only clients.
         - id: claude-mcp
           name: Claude MCP
-          secretEnv: DEX_CLIENT_SECRET
+          public: true
           redirectURIs:
             - https://claude.ai/api/mcp/auth_callback
     envFrom:

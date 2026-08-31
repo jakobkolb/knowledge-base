@@ -24,6 +24,6 @@ dependencies:
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-obsidian
   - name: api-gateway
-    version: "0.2.3"
+    version: "0.3.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: api-gateway
