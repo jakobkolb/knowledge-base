@@ -11,15 +11,15 @@ maintainers:
   - name: jakobkolb
 dependencies:
   - name: mcp-server
-    version: "0.5.1"
+    version: "0.6.2"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-calendar
   - name: mcp-server
-    version: "0.3.2"
+    version: "0.6.2"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-example
   - name: mcp-server
-    version: "0.6.1"
+    version: "0.6.2"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-obsidian
   - name: api-gateway
