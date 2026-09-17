@@ -22,7 +22,13 @@ dependencies:
     version: "0.6.2"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-obsidian
+  - name: mcp-server
+    version: "0.6.2"
+    repository: "oci://ghcr.io/jakobkolb/charts"
+    alias: mcp-whisper
   - name: api-gateway
-    version: "0.3.0"
+    # 0.4.0 adds per-endpoint ingress annotations, which mcp-whisper needs for
+    # its upload body size.
+    version: "0.4.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: api-gateway
