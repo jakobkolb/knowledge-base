@@ -24,6 +24,7 @@ MCP endpoints (configured via `api-gateway.mcpEndpoints`):
 - `calendar.<baseDomain>` → mcp-calendar pod
 - `example.<baseDomain>` → example MCP server (smoketest)
 - `obsidian.<baseDomain>` → mcp-obsidian pod (with obsidian-headless sidecar for vault sync)
+- `whisper.<baseDomain>` → mcp-whisper pod (speech-to-text; audio is uploaded to `/mcp/upload`)
 
 ---
 
@@ -46,6 +47,7 @@ chart/
 | `mcp-calendar` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Calendar MCP server |
 | `mcp-example` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Smoketest MCP server |
 | `mcp-obsidian` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Obsidian vault MCP server (with headless sync sidecar) |
+| `mcp-whisper` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Whisper speech-to-text MCP server |
 | `api-gateway` | `oci://ghcr.io/jakobkolb/charts/api-gateway` | Dex + oauth2-proxy + well-known server + ingress |
 
 The `api-gateway` chart is maintained at [jakobkolb/mcp-oauth-gateway](https://github.com/jakobkolb/mcp-oauth-gateway).
@@ -80,6 +82,10 @@ api-gateway:
     - subdomain: obsidian
       service: mcp-obsidian
       port: 8080     # optional — defaults to 8000 if omitted
+    - subdomain: whisper
+      service: mcp-whisper
+      annotations:   # optional — per-endpoint ingress annotations
+        nginx.ingress.kubernetes.io/proxy-body-size: "64m"
 ```
 
 Each entry gets a protected `/mcp` ingress and an unprotected `/.well-known` ingress.
@@ -170,10 +176,30 @@ Add to `~/.claude/settings.json` — Claude handles the OAuth browser flow autom
 {
   "mcpServers": {
     "calendar": { "type": "http", "url": "https://calendar.<baseDomain>/mcp" },
-    "obsidian": { "type": "http", "url": "https://obsidian.<baseDomain>/mcp" }
+    "obsidian": { "type": "http", "url": "https://obsidian.<baseDomain>/mcp" },
+    "whisper": { "type": "http", "url": "https://whisper.<baseDomain>/mcp" }
   }
 }
 ```
+
+### Transcribing audio
+
+`mcp-whisper` is asynchronous: `transcribe_audio` returns a `job_id` and
+`get_transcription` collects the text. Inline base64 costs roughly 1.4 tokens per
+audio byte of client context, so anything longer than a short clip should be uploaded
+first and referenced by id:
+
+```bash
+curl --data-binary @memo.wav \
+     -H "Authorization: Bearer $TOKEN" \
+     'https://whisper.<baseDomain>/mcp/upload?filename=memo.wav'
+# → {"audio_id":"4f6243…"}   then: transcribe_audio(audio_id="4f6243…")
+```
+
+The upload sink deliberately lives under `/mcp` so it is covered by the same OAuth
+ingress rule as the MCP endpoint itself. The model is downloaded on first start onto
+the `whisper-models` PVC and reused across restarts; `whisper_status` reports whether
+it is still downloading.
 
 ---
 
@@ -190,4 +216,8 @@ curl https://obsidian.<baseDomain>/.well-known/oauth-protected-resource
 # Unauthenticated MCP request — must return 401 with Bearer challenge
 curl -i https://calendar.<baseDomain>/mcp
 curl -i https://obsidian.<baseDomain>/mcp
+curl -i https://whisper.<baseDomain>/mcp
+
+# Whisper model state — "loading" right after a fresh deploy, then "ready"
+kubectl -n <namespace> logs deploy/knowledge-base-mcp-whisper | grep "model"
 ```

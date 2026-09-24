@@ -190,6 +190,76 @@ mcp-obsidian:
           mountPath: /obsidian-home
 
 
+# ── mcp-whisper (speech-to-text; Claude has no native transcription) ─────────
+mcp-whisper:
+  nameOverride: mcp-whisper
+  image:
+    repository: ghcr.io/jakobkolb/mcp-whisper
+    pullPolicy: Always
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  env:
+    # "base" is the practical ceiling on Pi-class ARM cores — roughly real time
+    # with int8. "small" and up fall well behind and starve the other pods.
+    WHISPER_MODEL: base
+    WHISPER_DEVICE: cpu
+    WHISPER_COMPUTE_TYPE: int8
+    # Match resources.limits.cpu; left at 0 CTranslate2 grabs every core on the
+    # node and makes the rest of the cluster crawl during a transcription.
+    WHISPER_CPU_THREADS: "3"
+    WHISPER_MODEL_DIR: /models
+    WHISPER_SPOOL_DIR: /spool
+    # Keep in step with the proxy-body-size annotation below.
+    WHISPER_MAX_AUDIO_BYTES: "67108864"
+    LOG_LEVEL: INFO
+  extraPersistentVolumeClaims:
+    # Without this the pod re-downloads the weights from HuggingFace on every
+    # restart — minutes of SD-card I/O before the first job can run.
+    - name: whisper-models
+      storageClassName: microk8s-hostpath
+      accessModes:
+        - ReadWriteOnce
+      size: 5Gi
+  extraVolumeMounts:
+    - name: models
+      mountPath: /models
+    - name: spool
+      mountPath: /spool
+  extraVolumes:
+    - name: models
+      persistentVolumeClaim:
+        claimName: whisper-models
+    # Uploads are transient and deleted as soon as their job finishes, so they
+    # do not need to survive a restart — but they do need a size cap so a
+    # backlog cannot fill the node's root filesystem.
+    - name: spool
+      emptyDir:
+        sizeLimit: 2Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: "3"
+      memory: 2Gi
+  # /health answers as soon as the process is up, including while the model is
+  # still downloading — a probe failure there would restart the pod and throw
+  # away the partial download.
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
+
 
 
 # ── api-gateway (Dex + oauth2-proxy + well-known server) ─────────────────────
@@ -210,6 +280,15 @@ api-gateway:
     - subdomain: obsidian
       service: mcp-obsidian
       port: 8080
+    - subdomain: whisper
+      service: mcp-whisper
+      annotations:
+        # Audio is POSTed to /mcp/upload; nginx's 1m default would reject a
+        # voice memo of any length. Keep at or above WHISPER_MAX_AUDIO_BYTES.
+        nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+        # Uploading tens of MB over a slow uplink outlasts the 60s default.
+        # Transcription itself is asynchronous and never holds a request open.
+        nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
 
   dex:
     config:
