@@ -290,9 +290,16 @@ api-gateway:
         # Transcription itself is asynchronous and never holds a request open.
         nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
 
+  # Every MCP connector registers as the same client, and Dex keeps one refresh
+  # token per (user, connector, client) - with a single shared connector each
+  # login revoked every other MCP connector's refresh token. This sends each
+  # endpoint's login through its own Dex connector "github-<subdomain>" below.
+  perEndpointConnectors:
+    enabled: true
+
   dex:
     config:
-      # When changing domain: update issuer and connectors[0].config.redirectURI
+      # When changing domain: update issuer and the connectors' redirectURI
       # to match global.authServerUrl (https://auth.<baseDomain>)
       issuer: https://auth.mcp.jakobjkolb.xyz
       storage:
@@ -301,14 +308,22 @@ api-gateway:
           inCluster: true
       web:
         http: 0.0.0.0:5556
+      # One connector per mcpEndpoints entry (the api-gateway render fails if one
+      # is missing), all on the same GitHub OAuth app and callback. "github" stays
+      # for clients that do not send the RFC 8707 resource parameter.
       connectors:
-        - type: github
+        - &github-connector
+          type: github
           id: github
           name: GitHub
           config:
             clientID: $GITHUB_CLIENT_ID
             clientSecret: $GITHUB_CLIENT_SECRET
             redirectURI: https://auth.mcp.jakobjkolb.xyz/callback
+        - {<<: *github-connector, id: github-calendar}
+        - {<<: *github-connector, id: github-example}
+        - {<<: *github-connector, id: github-obsidian}
+        - {<<: *github-connector, id: github-whisper}
       oauth2:
         skipApprovalScreen: true
       expiry:
