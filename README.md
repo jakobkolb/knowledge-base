@@ -90,6 +90,33 @@ api-gateway:
 
 Each entry gets a protected `/mcp` ingress and an unprotected `/.well-known` ingress.
 
+**Adding an endpoint also means adding a Dex connector.** `perEndpointConnectors`
+is enabled, so every entry needs a matching connector `github-<subdomain>` under
+`api-gateway.dex.config.connectors` — the api-gateway chart refuses to render
+without one:
+
+```yaml
+api-gateway:
+  perEndpointConnectors:
+    enabled: true
+  dex:
+    config:
+      connectors:
+        - &github-connector
+          type: github
+          id: github
+          name: GitHub
+          config: {clientID: $GITHUB_CLIENT_ID, clientSecret: $GITHUB_CLIENT_SECRET, redirectURI: https://auth.<baseDomain>/callback}
+        - {<<: *github-connector, id: github-calendar}
+        - {<<: *github-connector, id: github-whisper}
+```
+
+They all share the one GitHub OAuth app and callback URL. The reason is that every
+MCP connector registers as the same client `claude-mcp`, and Dex keeps only one
+refresh token per (user, connector, client) — with a single shared connector, each
+login silently revoked every other endpoint's refresh token. A newly added endpoint
+needs one reconnect before it holds its own.
+
 ### Secrets (`chart/values.secret.yaml`)
 
 ```yaml
@@ -97,7 +124,9 @@ global:
   secrets:
     githubClientId: ""        # GitHub OAuth App → Client ID
     githubClientSecret: ""    # GitHub OAuth App → Client Secret
-    dexClientSecret: ""       # shared: Dex staticClient ↔ oauth2-proxy (generate randomly)
+    dexClientSecret: ""       # despite the name: NOT shared with Dex. claude-mcp is a public
+                              # PKCE client with no secret and oauth2-proxy runs bearer-only,
+                              # so this value is never exchanged — it only has to be set.
     cookieSecret: ""          # oauth2-proxy cookie secret (generate randomly)
 
 mcp-calendar:
@@ -140,8 +169,8 @@ obsidian-headless-auth:
 
 **2. Generate random secrets**
 ```bash
-openssl rand -base64 32   # → dexClientSecret
-openssl rand -base64 32   # → cookieSecret
+openssl rand -base64 32   # → dexClientSecret (a placeholder oauth2-proxy needs; never exchanged)
+openssl rand -base64 32   # → cookieSecret   (must decode to 16, 24 or 32 bytes)
 ```
 
 **3. Fill in `chart/values.secret.yaml`** with the GitHub credentials and generated secrets, or run:
@@ -168,7 +197,7 @@ helm upgrade --install knowledge-base chart/ \
 2. Name: Calendar, URL: `https://calendar.<baseDomain>/mcp`
 3. Advanced → OAuth Client ID: `claude-mcp` (leave OAuth Client Secret empty — claude-mcp is a public PKCE client)
 4. Authenticate via GitHub
-5. Repeat for `https://obsidian.<baseDomain>/mcp`
+5. Repeat for each endpoint you want: `obsidian`, `whisper`, …
 
 **Claude Code / Claude Desktop:**
 Add to `~/.claude/settings.json` — Claude handles the OAuth browser flow automatically:
