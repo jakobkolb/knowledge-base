@@ -23,7 +23,7 @@ dependencies:
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-obsidian
   - name: mcp-server
-    version: "0.6.2"
+    version: "0.7.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-whisper
   - name: api-gateway
