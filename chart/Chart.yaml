@@ -27,8 +27,8 @@ dependencies:
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-whisper
   - name: api-gateway
-    # 0.4.0 adds per-endpoint ingress annotations, which mcp-whisper needs for
-    # its upload body size.
-    version: "0.4.0"
+    # 0.4.0 adds per-endpoint ingress annotations (mcp-whisper upload body
+    # size); 0.5.0 adds perEndpointConnectors (one refresh token per connector).
+    version: "0.5.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: api-gateway
