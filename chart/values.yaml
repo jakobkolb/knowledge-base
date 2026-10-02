@@ -26,6 +26,7 @@ mcp-calendar:
     enabled: false    # umbrella chart owns all ingresses
   env:
     CALENDAR_CONFIG: /config/config.yaml
+    CALENDAR_TZ: Europe/Berlin   # zone for writing events and returned offsets (mcp-servers >= 0.8.0)
   configFile:
     enabled: true
     mountPath: /config/config.yaml
