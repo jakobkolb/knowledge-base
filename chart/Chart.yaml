@@ -27,7 +27,7 @@ dependencies:
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-whisper
   - name: mcp-server
-    version: "0.9.0"
+    version: "0.10.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-whatsapp
   - name: api-gateway
