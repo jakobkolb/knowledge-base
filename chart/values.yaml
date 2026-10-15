@@ -1,31 +1,36 @@
 global:
   # ── Edit these when moving to a different domain ─────────────────────────
-  baseDomain: mcp.jakobjkolb.xyz # MCP hosts become *.<baseDomain>; auth host becomes auth.<baseDomain>
+  baseDomain: mcp.jakobjkolb.xyz  # MCP hosts become *.<baseDomain>; auth host becomes auth.<baseDomain>
   clusterIssuer: letsencrypt-prod
+
   # authServerUrl must equal https://auth.<baseDomain>
   # Set explicitly because third-party charts (Dex, oauth2-proxy) consume it
   # as a plain string — Helm values don't support self-referencing.
   authServerUrl: https://auth.mcp.jakobjkolb.xyz
-  secrets: {} # all secret fields populated in values.secret.yaml
-  createSecrets: true # set false for ArgoCD — pre-create secrets in cluster instead
+
+  secrets: {}   # all secret fields populated in values.secret.yaml
+  createSecrets: true   # set false for ArgoCD — pre-create secrets in cluster instead
+
   registry:
-    existingSecret: "" # name of a pre-existing imagePullSecret; skips Secret creation
-    dockerConfigJson: "" # base64 .dockerconfigjson; chart creates a Secret named registry-creds
+    existingSecret: ""    # name of a pre-existing imagePullSecret; skips Secret creation
+    dockerConfigJson: ""  # base64 .dockerconfigjson; chart creates a Secret named registry-creds
+
+
 # ── mcp-calendar (mcp-server chart aliased as mcp-calendar) ──────────────────
 mcp-calendar:
-  nameOverride: mcp-calendar # makes service name <release>-mcp-calendar
+  nameOverride: mcp-calendar    # makes service name <release>-mcp-calendar
   image:
     repository: ghcr.io/jakobkolb/mcp-calendar
     pullPolicy: IfNotPresent
   ingress:
-    enabled: false # umbrella chart owns all ingresses
+    enabled: false    # umbrella chart owns all ingresses
   env:
     CALENDAR_CONFIG: /config/config.yaml
-    CALENDAR_TZ: Europe/Berlin # zone for writing events and returned offsets (mcp-servers >= 0.8.0)
+    CALENDAR_TZ: Europe/Berlin   # zone for writing events and returned offsets (mcp-servers >= 0.8.0)
   configFile:
     enabled: true
     mountPath: /config/config.yaml
-    content: "" # set in values.secret.yaml
+    content: ""       # set in values.secret.yaml
   # Calico/Felix periodically re-evaluates pod endpoint routes, briefly making
   # the pod IP unreachable. Raise failureThreshold so transient EINVAL errors
   # don't trigger a liveness kill and crash-loop the pod.
@@ -43,29 +48,32 @@ mcp-calendar:
     initialDelaySeconds: 5
     periodSeconds: 10
     failureThreshold: 6
+
+
 # ── mcp-example (smoketest / hello-world MCP server) ─────────────────────────
 mcp-example:
-  nameOverride: mcp-example # makes service name <release>-mcp-example
+  nameOverride: mcp-example    # makes service name <release>-mcp-example
   image:
     repository: ghcr.io/jakobkolb/example
     pullPolicy: Always
   ingress:
-    enabled: false # umbrella chart owns all ingresses
+    enabled: false    # umbrella chart owns all ingresses
   env: {}
   configFile:
     enabled: false
+
 mcp-obsidian:
   nameOverride: mcp-obsidian
   image:
     repository: ghcr.io/jakobkolb/mcp-obsidian
     pullPolicy: Always
   podSecurityContext:
-    fsGroup: 1000 # shared GID for vault volume — both containers get write access
+    fsGroup: 1000    # shared GID for vault volume — both containers get write access
   securityContext:
     runAsUser: 1000
     runAsGroup: 1000
   ingress:
-    enabled: false # umbrella chart owns all ingresses
+    enabled: false    # umbrella chart owns all ingresses
   service:
     port: 8080
   env:
@@ -181,6 +189,8 @@ mcp-obsidian:
           mountPath: /vault
         - name: obsidian-headless-state
           mountPath: /obsidian-home
+
+
 # ── mcp-whisper (speech-to-text; Claude has no native transcription) ─────────
 mcp-whisper:
   nameOverride: mcp-whisper
@@ -188,7 +198,7 @@ mcp-whisper:
     repository: ghcr.io/jakobkolb/mcp-whisper
     pullPolicy: Always
   ingress:
-    enabled: false # umbrella chart owns all ingresses
+    enabled: false    # umbrella chart owns all ingresses
   env:
     # "base" is the practical ceiling on Pi-class ARM cores — roughly real time
     # with int8. "small" and up fall well behind and starve the other pods.
@@ -250,6 +260,9 @@ mcp-whisper:
     initialDelaySeconds: 5
     periodSeconds: 10
     failureThreshold: 6
+
+
+
 # ── mcp-whatsapp (read-only WhatsApp; Go bridge runs as a sidecar) ───────────
 # Pair via the get_pairing_qr tool, then set WHATSAPP_ALLOWED_CHATS from the
 # output of list_available_chats.
@@ -259,7 +272,7 @@ mcp-whatsapp:
     repository: ghcr.io/jakobkolb/mcp-whatsapp
     pullPolicy: Always
   ingress:
-    enabled: false # umbrella chart owns all ingresses
+    enabled: false    # umbrella chart owns all ingresses
   env:
     # Comma-separated chat JIDs the agent may read; empty serves no content.
     WHATSAPP_ALLOWED_CHATS: ""
@@ -303,6 +316,8 @@ mcp-whatsapp:
     initialDelaySeconds: 5
     periodSeconds: 10
     failureThreshold: 6
+
+
 # ── api-gateway (Dex + oauth2-proxy + well-known server) ─────────────────────
 # NOTE for values.secret.yaml maintainers: dex and oauth2-proxy config previously
 # lived at the top level (dex: / oauth2-proxy:).  They now nest under api-gateway:.
@@ -332,12 +347,14 @@ api-gateway:
         nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     - subdomain: whatsapp
       service: mcp-whatsapp
+
   # Every MCP connector registers as the same client, and Dex keeps one refresh
   # token per (user, connector, client) - with a single shared connector each
   # login revoked every other MCP connector's refresh token. This sends each
   # endpoint's login through its own Dex connector "github-<subdomain>" below.
   perEndpointConnectors:
     enabled: true
+
   dex:
     config:
       # When changing domain: update issuer and the connectors' redirectURI
@@ -391,29 +408,31 @@ api-gateway:
             - https://claude.ai/api/mcp/auth_callback
     envFrom:
       - secretRef:
-          name: dex-github-client # secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
+          name: dex-github-client   # secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
       - secretRef:
-          name: dex-static-client # secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
+          name: dex-static-client   # secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
+
     ingress:
-      enabled: false # api-gateway subchart owns all ingresses
+      enabled: false    # api-gateway subchart owns all ingresses
     serviceAccount:
       create: true
     rbac:
       create: true
+
   oauth2-proxy:
     extraArgs:
       provider: oidc
       # When changing domain: update oidc-issuer-url to match global.authServerUrl (https://auth.<baseDomain>)
       oidc-issuer-url: https://auth.mcp.jakobjkolb.xyz
-      upstream: file:///dev/null # external-auth mode only — no reverse proxying
+      upstream: file:///dev/null      # external-auth mode only — no reverse proxying
       email-domain: "*"
-      skip-jwt-bearer-tokens: "true" # validate Bearer JWTs directly (no session cookie)
+      skip-jwt-bearer-tokens: "true"  # validate Bearer JWTs directly (no session cookie)
       skip-provider-button: "true"
       http-address: 0.0.0.0:4180
     config:
-      existingSecret: oauth2-proxy # created by secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
+      existingSecret: oauth2-proxy      # created by secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
     service:
       type: ClusterIP
       portNumber: 4180
     ingress:
-      enabled: false # internal only — nginx reaches it via cluster DNS
+      enabled: false    # internal only — nginx reaches it via cluster DNS
