@@ -50,7 +50,10 @@ jobs:
             yq eval "(.dependencies[] | select(.alias == \"$alias\") | .version) = \"$VERSION\"" -i chart/Chart.yaml
             if [ "$alias" = mcp-whatsapp ]; then
               # The bridge sidecar uses the same image; keep its tag in step.
-              yq eval "(.[\"mcp-whatsapp\"].extraContainers[] | select(.name == \"whatsapp-bridge\") | .image) = \"ghcr.io/jakobkolb/mcp-whatsapp:$VERSION\"" -i chart/values.yaml
+              # sed, not yq -i: yq rewrites the whole file (blank lines, comment spacing).
+              sed -i -E "s#^(\s+image: ghcr\.io/jakobkolb/mcp-whatsapp:)\S+\$#\1$VERSION#" chart/values.yaml
+              grep -q "image: ghcr.io/jakobkolb/mcp-whatsapp:$VERSION\$" chart/values.yaml \
+                || { echo "::error::whatsapp-bridge image tag not found in chart/values.yaml"; exit 1; }
             fi
             CHANGED+=("$alias")
           done
