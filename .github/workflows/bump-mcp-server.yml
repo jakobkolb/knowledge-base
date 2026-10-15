@@ -50,7 +50,7 @@ jobs:
             yq eval "(.dependencies[] | select(.alias == \"$alias\") | .version) = \"$VERSION\"" -i chart/Chart.yaml
             if [ "$alias" = mcp-whatsapp ]; then
               # The bridge sidecar uses the same image; keep its tag in step.
-              yq eval "(.["mcp-whatsapp"].extraContainers[] | select(.name == \"whatsapp-bridge\") | .image) = \"ghcr.io/jakobkolb/mcp-whatsapp:$VERSION\"" -i chart/values.yaml
+              yq eval "(.[\"mcp-whatsapp\"].extraContainers[] | select(.name == \"whatsapp-bridge\") | .image) = \"ghcr.io/jakobkolb/mcp-whatsapp:$VERSION\"" -i chart/values.yaml
             fi
             CHANGED+=("$alias")
           done
