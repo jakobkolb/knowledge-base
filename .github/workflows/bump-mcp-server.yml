@@ -32,6 +32,7 @@ jobs:
             [mcp-calendar]=mcp-calendar
             [mcp-obsidian]=mcp-obsidian
             [mcp-whisper]=mcp-whisper
+            [mcp-whatsapp]=mcp-whatsapp
             [example]=mcp-example
           )
 
@@ -47,6 +48,10 @@ jobs:
               continue
             fi
             yq eval "(.dependencies[] | select(.alias == \"$alias\") | .version) = \"$VERSION\"" -i chart/Chart.yaml
+            if [ "$alias" = mcp-whatsapp ]; then
+              # The bridge sidecar uses the same image; keep its tag in step.
+              yq eval "(.["mcp-whatsapp"].extraContainers[] | select(.name == \"whatsapp-bridge\") | .image) = \"ghcr.io/jakobkolb/mcp-whatsapp:$VERSION\"" -i chart/values.yaml
+            fi
             CHANGED+=("$alias")
           done
 
@@ -66,7 +71,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add chart/Chart.yaml
+          git add chart/Chart.yaml chart/values.yaml
           git commit -m "$TITLE"
           git push origin "$BRANCH"
 

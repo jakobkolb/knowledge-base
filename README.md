@@ -25,6 +25,7 @@ MCP endpoints (configured via `api-gateway.mcpEndpoints`):
 - `example.<baseDomain>` → example MCP server (smoketest)
 - `obsidian.<baseDomain>` → mcp-obsidian pod (with obsidian-headless sidecar for vault sync)
 - `whisper.<baseDomain>` → mcp-whisper pod (speech-to-text; audio is uploaded to `/mcp/upload`)
+- `whatsapp.<baseDomain>` → mcp-whatsapp pod (read-only WhatsApp; bridge sidecar, paired via the `get_pairing_qr` tool, readable chats set in `mcp-whatsapp.env.WHATSAPP_ALLOWED_CHATS`)
 
 ---
 
@@ -48,6 +49,7 @@ chart/
 | `mcp-example` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Smoketest MCP server |
 | `mcp-obsidian` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Obsidian vault MCP server (with headless sync sidecar) |
 | `mcp-whisper` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Whisper speech-to-text MCP server |
+| `mcp-whatsapp` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Read-only WhatsApp MCP server (with bridge sidecar) |
 | `api-gateway` | `oci://ghcr.io/jakobkolb/charts/api-gateway` | Dex + oauth2-proxy + well-known server + ingress |
 
 The `api-gateway` chart is maintained at [jakobkolb/mcp-oauth-gateway](https://github.com/jakobkolb/mcp-oauth-gateway).
