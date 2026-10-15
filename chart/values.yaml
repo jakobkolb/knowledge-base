@@ -263,6 +263,61 @@ mcp-whisper:
 
 
 
+# ── mcp-whatsapp (read-only WhatsApp; Go bridge runs as a sidecar) ───────────
+# Pair via the get_pairing_qr tool, then set WHATSAPP_ALLOWED_CHATS from the
+# output of list_available_chats.
+mcp-whatsapp:
+  nameOverride: mcp-whatsapp
+  image:
+    repository: ghcr.io/jakobkolb/mcp-whatsapp
+    pullPolicy: Always
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  env:
+    # Comma-separated chat JIDs the agent may read; empty serves no content.
+    WHATSAPP_ALLOWED_CHATS: ""
+    LOG_LEVEL: INFO
+  extraPersistentVolumeClaims:
+    # Holds the linked-device session and the message database; without it
+    # every restart means re-pairing.
+    - name: whatsapp-store
+      storageClassName: microk8s-hostpath
+      accessModes:
+        - ReadWriteOnce
+      size: 1Gi
+  extraVolumes:
+    - name: store
+      persistentVolumeClaim:
+        claimName: whatsapp-store
+  extraVolumeMounts:
+    - name: store
+      mountPath: /store
+  # Same image as the server, bridge entrypoint. Kept in step with the chart
+  # version by the bump workflow.
+  extraContainers:
+    - name: whatsapp-bridge
+      image: ghcr.io/jakobkolb/mcp-whatsapp:0.9.0
+      imagePullPolicy: IfNotPresent
+      command: ["whatsapp-bridge"]
+      volumeMounts:
+        - name: store
+          mountPath: /store
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
+
+
 # ── api-gateway (Dex + oauth2-proxy + well-known server) ─────────────────────
 # NOTE for values.secret.yaml maintainers: dex and oauth2-proxy config previously
 # lived at the top level (dex: / oauth2-proxy:).  They now nest under api-gateway:.
@@ -290,6 +345,8 @@ api-gateway:
         # Uploading tens of MB over a slow uplink outlasts the 60s default.
         # Transcription itself is asynchronous and never holds a request open.
         nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    - subdomain: whatsapp
+      service: mcp-whatsapp
 
   # Every MCP connector registers as the same client, and Dex keeps one refresh
   # token per (user, connector, client) - with a single shared connector each
@@ -325,6 +382,7 @@ api-gateway:
         - {<<: *github-connector, id: github-example}
         - {<<: *github-connector, id: github-obsidian}
         - {<<: *github-connector, id: github-whisper}
+        - {<<: *github-connector, id: github-whatsapp}
       oauth2:
         skipApprovalScreen: true
       expiry:
