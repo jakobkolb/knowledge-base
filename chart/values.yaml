@@ -318,6 +318,66 @@ mcp-whatsapp:
     failureThreshold: 6
 
 
+# ── mcp-print (CUPS printing; Gotenberg renders the inline document) ─────────
+# The document only ever arrives inside the tool call. The pod talks to the
+# host's CUPS through /run/cups/cups.sock, so CUPS need not listen on the network.
+mcp-print:
+  nameOverride: mcp-print
+  image:
+    repository: ghcr.io/jakobkolb/mcp-print
+    pullPolicy: Always
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  env:
+    # Comma-separated CUPS queue names the agent may use; empty allows every queue.
+    PRINT_ALLOWED_PRINTERS: ""
+    # Empty uses the CUPS default destination.
+    PRINT_DEFAULT_PRINTER: ""
+    PRINT_MAX_PAGES: "20"
+    PRINT_MAX_COPIES: "10"
+    LOG_LEVEL: INFO
+  # Mount the directory, not the socket file, so a cupsd restart does not leave
+  # a stale socket behind.
+  extraVolumes:
+    - name: cups
+      hostPath:
+        path: /run/cups
+        type: Directory
+  extraVolumeMounts:
+    - name: cups
+      mountPath: /run/cups
+  # Renders the HTML from the tool call to PDF. Loopback only, no network
+  # fetches (every URL but its own temp files denied, DNS resolves nothing),
+  # no JavaScript, only the Chromium HTML routes. Pinned independently of
+  # mcp-print's version.
+  extraContainers:
+    - name: renderer
+      image: gotenberg/gotenberg:8.38.1-chromium
+      imagePullPolicy: IfNotPresent
+      args:
+        - gotenberg
+        - --api-bind-ip=127.0.0.1
+        - --api-port=3000
+        - --api-timeout=40s
+        - --api-disable-download-from
+        - --webhook-disable
+        - --pdfengines-disable-routes
+        - --chromium-disable-javascript
+        - --chromium-deny-private-ips
+        - --chromium-deny-public-ips
+        - --chromium-deny-list=^(?!file:///tmp/).*
+        - --chromium-host-resolver-rules=MAP * ~NOTFOUND
+        - --chromium-max-queue-size=4
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+      securityContext:
+        allowPrivilegeEscalation: false
+
+
 # ── api-gateway (Dex + oauth2-proxy + well-known server) ─────────────────────
 # NOTE for values.secret.yaml maintainers: dex and oauth2-proxy config previously
 # lived at the top level (dex: / oauth2-proxy:).  They now nest under api-gateway:.
@@ -347,6 +407,8 @@ api-gateway:
         nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     - subdomain: whatsapp
       service: mcp-whatsapp
+    - subdomain: print
+      service: mcp-print
 
   # Every MCP connector registers as the same client, and Dex keeps one refresh
   # token per (user, connector, client) - with a single shared connector each
@@ -383,6 +445,7 @@ api-gateway:
         - {<<: *github-connector, id: github-obsidian}
         - {<<: *github-connector, id: github-whisper}
         - {<<: *github-connector, id: github-whatsapp}
+        - {<<: *github-connector, id: github-print}
       oauth2:
         skipApprovalScreen: true
       expiry:
