@@ -298,8 +298,15 @@ api-gateway:
     enabled: true
 
   dex:
+    env:
+      # Expanded by Dex inside connector configs ($DEX_REDIRECT_URI). Env is a
+      # map, so environments override just this value instead of copying the
+      # whole connectors list (Helm replaces lists whole).
+      # When changing domain: update this and issuer below to match
+      # global.authServerUrl (https://auth.<baseDomain>)
+      DEX_REDIRECT_URI: https://auth.mcp.jakobjkolb.xyz/callback
     config:
-      # When changing domain: update issuer and the connectors' redirectURI
+      # When changing domain: update issuer and DEX_REDIRECT_URI (see env above)
       # to match global.authServerUrl (https://auth.<baseDomain>)
       issuer: https://auth.mcp.jakobjkolb.xyz
       storage:
@@ -319,7 +326,7 @@ api-gateway:
           config:
             clientID: $GITHUB_CLIENT_ID
             clientSecret: $GITHUB_CLIENT_SECRET
-            redirectURI: https://auth.mcp.jakobjkolb.xyz/callback
+            redirectURI: $DEX_REDIRECT_URI
         - {<<: *github-connector, id: github-calendar}
         - {<<: *github-connector, id: github-example}
         - {<<: *github-connector, id: github-obsidian}
