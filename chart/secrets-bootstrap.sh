@@ -40,6 +40,16 @@ missing=()
 [[ -z "$OBSIDIAN_PASSWORD" ]]        && missing+=("OBSIDIAN_PASSWORD")
 [[ -z "$OBSIDIAN_VAULT" ]]           && missing+=("OBSIDIAN_VAULT")
 [[ -z "$OBSIDIAN_SYNC_PASSWORD" ]]   && missing+=("OBSIDIAN_SYNC_PASSWORD")
+# oauth2-proxy crash-loops unless the cookie secret is 16/24/32 raw bytes (or base64 of that)
+if [[ -n "$COOKIE_SECRET" ]]; then
+  raw=${#COOKIE_SECRET}
+  b64=$(printf '%s' "$COOKIE_SECRET" | tr '_-' '/+' | base64 -d 2>/dev/null | wc -c)
+  [[ " 16 24 32 " == *" $raw "* || " 16 24 32 " == *" $b64 "* ]] || {
+    echo "ERROR: COOKIE_SECRET is $raw chars ($b64 bytes if base64) - must be 16, 24 or 32 bytes." >&2
+    echo "       Generate one with: openssl rand -hex 16" >&2
+    exit 1; }
+fi
+
 if (( ${#missing[@]} > 0 )); then
   echo "ERROR: required variables not set: ${missing[*]}" >&2
   echo "Pass them as environment variables:" >&2
