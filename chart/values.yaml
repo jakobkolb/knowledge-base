@@ -495,7 +495,9 @@ api-gateway:
       # When changing domain: update oidc-issuer-url to match global.authServerUrl (https://auth.<baseDomain>)
       oidc-issuer-url: https://auth.mcp.jakobjkolb.xyz
       upstream: file:///dev/null      # external-auth mode only — no reverse proxying
-      email-domain: "*"
+      # No email-domain here: who may log in is the allow-list in the Secret
+      # oauth2-proxy-allowed-emails (api-gateway authenticatedEmailsFile), filled
+      # from global.secrets.allowedEmails or by the secret bootstrap.
       skip-jwt-bearer-tokens: "true"  # validate Bearer JWTs directly (no session cookie)
       skip-provider-button: "true"
       http-address: 0.0.0.0:4180
