@@ -88,7 +88,7 @@ global:
     githubClientId: ""        # GitHub OAuth App → Client ID
     githubClientSecret: ""    # GitHub OAuth App → Client Secret
     dexClientSecret: ""       # shared: Dex staticClient ↔ oauth2-proxy (generate randomly)
-    cookieSecret: ""          # oauth2-proxy cookie secret (generate randomly)
+    cookieSecret: ""          # oauth2-proxy cookie secret: exactly 16, 24 or 32 bytes (openssl rand -hex 16)
     allowedEmails: ""         # who may log in: GitHub primary email, one address per line
 
 mcp-calendar:
@@ -132,7 +132,7 @@ obsidian-headless-auth:
 **2. Generate random secrets**
 ```bash
 openssl rand -base64 32   # → dexClientSecret
-openssl rand -base64 32   # → cookieSecret
+openssl rand -hex 16       # → cookieSecret (must be exactly 16, 24 or 32 bytes)
 ```
 
 **3. Fill in `chart/values.secret.yaml`** with the GitHub credentials and generated secrets, or run:
