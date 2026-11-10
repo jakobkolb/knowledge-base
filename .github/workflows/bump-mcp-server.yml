@@ -34,7 +34,6 @@ jobs:
             [mcp-whisper]=mcp-whisper
             [mcp-whatsapp]=mcp-whatsapp
             [mcp-print]=mcp-print
-            [example]=mcp-example
           )
 
           CHANGED=()

@@ -22,7 +22,6 @@ Claude (any client)
 
 MCP endpoints (configured via `api-gateway.mcpEndpoints`):
 - `calendar.<baseDomain>` → mcp-calendar pod
-- `example.<baseDomain>` → example MCP server (smoketest)
 - `obsidian.<baseDomain>` → mcp-obsidian pod (with obsidian-headless sidecar for vault sync)
 - `whisper.<baseDomain>` → mcp-whisper pod (speech-to-text; audio is uploaded to `/mcp/upload`)
 - `whatsapp.<baseDomain>` → mcp-whatsapp pod (read-only WhatsApp; bridge sidecar, paired via the `get_pairing_qr` tool, readable chats set in `mcp-whatsapp.env.WHATSAPP_ALLOWED_CHATS`)
@@ -46,7 +45,6 @@ chart/
 | Alias | Chart | Role |
 |---|---|---|
 | `mcp-calendar` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Calendar MCP server |
-| `mcp-example` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Smoketest MCP server |
 | `mcp-obsidian` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Obsidian vault MCP server (with headless sync sidecar) |
 | `mcp-whisper` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Whisper speech-to-text MCP server |
 | `mcp-whatsapp` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Read-only WhatsApp MCP server (with bridge sidecar) |
@@ -79,8 +77,6 @@ api-gateway:
   mcpEndpoints:
     - subdomain: calendar
       service: mcp-calendar
-    - subdomain: example
-      service: mcp-example
     - subdomain: obsidian
       service: mcp-obsidian
       port: 8080     # optional — defaults to 8000 if omitted

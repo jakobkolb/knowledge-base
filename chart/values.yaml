@@ -50,18 +50,6 @@ mcp-calendar:
     failureThreshold: 6
 
 
-# ── mcp-example (smoketest / hello-world MCP server) ─────────────────────────
-mcp-example:
-  nameOverride: mcp-example    # makes service name <release>-mcp-example
-  image:
-    repository: ghcr.io/jakobkolb/example
-    pullPolicy: Always
-  ingress:
-    enabled: false    # umbrella chart owns all ingresses
-  env: {}
-  configFile:
-    enabled: false
-
 mcp-obsidian:
   nameOverride: mcp-obsidian
   image:
@@ -391,8 +379,6 @@ api-gateway:
   mcpEndpoints:
     - subdomain: calendar
       service: mcp-calendar
-    - subdomain: example
-      service: mcp-example
     - subdomain: obsidian
       service: mcp-obsidian
       port: 8080
@@ -448,7 +434,6 @@ api-gateway:
             clientSecret: $GITHUB_CLIENT_SECRET
             redirectURI: $DEX_REDIRECT_URI
         - {<<: *github-connector, id: github-calendar}
-        - {<<: *github-connector, id: github-example}
         - {<<: *github-connector, id: github-obsidian}
         - {<<: *github-connector, id: github-whisper}
         - {<<: *github-connector, id: github-whatsapp}
