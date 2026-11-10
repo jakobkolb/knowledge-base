@@ -30,7 +30,9 @@ dependencies:
   - name: api-gateway
     # 0.4.0 adds per-endpoint ingress annotations; 0.5.0 adds perEndpointConnectors (one refresh token per connector);
     # 0.6.0 restricts logins to an email allow-list (needs the Secret
-    # oauth2-proxy-allowed-emails). Do not merge before v0.6.0 is tagged.
-    version: "0.6.0"
+    # oauth2-proxy-allowed-emails); 0.7.0 serves the OAuth endpoints over HTTPS
+    # only (drops ssl-redirect=false), pins OpenResty, moves oauth2-proxy to
+    # v7.15.6 and adds an opt-in NetworkPolicy (networkPolicy.enabled).
+    version: "0.7.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: api-gateway
