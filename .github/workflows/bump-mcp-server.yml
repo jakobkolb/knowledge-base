@@ -15,10 +15,16 @@ jobs:
         with:
           ref: main
 
+      # A fixed version, checked against its published SHA-256: this job has
+      # contents: write, so it should not run whatever "latest" serves today.
       - name: Install yq
+        env:
+          YQ_VERSION: v4.54.3
+          YQ_SHA256: 129534601871538efe0ba4c5e62a34fb1d5f469bcb975c4fddeb467d82974973
         run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+          curl -fsSL -o /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          echo "${YQ_SHA256}  /tmp/yq" | sha256sum -c -
+          sudo install -m 0755 /tmp/yq /usr/local/bin/yq
 
       - name: Bump the affected dependency versions
         id: bump

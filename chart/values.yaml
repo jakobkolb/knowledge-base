@@ -64,9 +64,12 @@ mcp-example:
 
 mcp-obsidian:
   nameOverride: mcp-obsidian
+  # IfNotPresent, not Always, for the images that stay: the tag is the release version,
+  # and with Always a deleted and re-pushed tag redeploys on the next pod restart with
+  # no pull request anywhere.
   image:
     repository: ghcr.io/jakobkolb/mcp-obsidian
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 1000    # shared GID for vault volume — both containers get write access
   securityContext:
@@ -270,7 +273,7 @@ mcp-whatsapp:
   nameOverride: mcp-whatsapp
   image:
     repository: ghcr.io/jakobkolb/mcp-whatsapp
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   ingress:
     enabled: false    # umbrella chart owns all ingresses
   env:
@@ -325,7 +328,7 @@ mcp-print:
   nameOverride: mcp-print
   image:
     repository: ghcr.io/jakobkolb/mcp-print
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   ingress:
     enabled: false    # umbrella chart owns all ingresses
   env:
