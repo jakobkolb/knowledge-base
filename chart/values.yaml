@@ -126,7 +126,10 @@ mcp-obsidian:
           mkdir -p "${VAULT_PATH}"
           mkdir -p "${HOME}"
           # Install to PVC-backed HOME so uid=1000 can write and it persists across restarts
-          npm install -g --prefix "${HOME}" --cache /tmp/npm-cache obsidian-headless
+          # Pinned: an unversioned install resolves "latest" on every start, in the
+          # container that holds the Obsidian password and the E2E sync password.
+          # Bump deliberately; npm replaces whatever version the PVC prefix holds.
+          npm install -g --prefix "${HOME}" --cache /tmp/npm-cache obsidian-headless@0.0.14
           export PATH="${HOME}/bin:${PATH}"
 
           if ! ob sync-list-remote >/dev/null 2>&1; then
