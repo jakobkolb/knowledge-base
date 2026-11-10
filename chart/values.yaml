@@ -317,6 +317,24 @@ api-gateway:
     - subdomain: print
       service: mcp-print
 
+  # Only the ingress controller may reach the backends, oauth2-proxy, Dex and the
+  # well-known server: without this any pod in the cluster can call a backend directly,
+  # with no token. The controller is the MicroK8s ingress addon: namespace "ingress",
+  # pods labelled name=nginx-ingress-microk8s, hostPort (not hostNetwork), so its traffic
+  # reaches the backends from a pod IP in that namespace. Needs a CNI that enforces
+  # policies (Calico here). Pods that no policy selects, such as cert-manager's ACME
+  # solver pods, stay open. Rollback: set enabled to false.
+  networkPolicy:
+    enabled: true
+    ingressController:
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+          podSelector:
+            matchLabels:
+              name: nginx-ingress-microk8s
+
   # Every MCP connector registers as the same client, and Dex keeps one refresh
   # token per (user, connector, client) - with a single shared connector each
   # login revoked every other MCP connector's refresh token. This sends each
