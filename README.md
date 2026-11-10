@@ -36,9 +36,7 @@ chart/
 ├── Chart.yaml              ← umbrella chart; all deps from OCI
 ├── values.yaml             ← all non-secret config
 ├── values.secret.yaml      ← gitignored; credentials and secrets
-├── secrets-bootstrap.sh    ← one-time secret creation helper
-└── templates/
-    └── secrets.yaml        ← optional registry pull secret
+└── secrets-bootstrap.sh    ← one-time secret creation helper
 ```
 
 ### Subcharts (all from OCI)

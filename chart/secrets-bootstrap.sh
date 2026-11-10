@@ -26,11 +26,6 @@ OBSIDIAN_PASSWORD="${OBSIDIAN_PASSWORD:-}"
 OBSIDIAN_VAULT="${OBSIDIAN_VAULT:-}"             # vault name as shown in Obsidian Sync
 OBSIDIAN_SYNC_PASSWORD="${OBSIDIAN_SYNC_PASSWORD:-}"  # end-to-end encryption password
 
-# Registry credentials (leave blank to skip)
-REGISTRY_SERVER="ghcr.io"
-REGISTRY_USERNAME="${REGISTRY_USERNAME:-}"
-REGISTRY_PASSWORD="${REGISTRY_PASSWORD:-}"   # personal access token with read:packages
-
 # ── Validate required values ──────────────────────────────────────────────────
 missing=()
 [[ -z "$GITHUB_CLIENT_ID" ]]     && missing+=("GITHUB_CLIENT_ID")
@@ -89,13 +84,5 @@ kubectl -n "$NAMESPACE" create secret generic obsidian-headless-auth \
 kubectl -n "$NAMESPACE" create secret generic "${RELEASE}-mcp-calendar-config" \
   --from-literal=config.yaml="$CALENDAR_CONFIG" \
   --save-config --dry-run=client -o yaml | kubectl apply -f -
-
-if [[ -n "$REGISTRY_USERNAME" ]]; then
-  kubectl -n "$NAMESPACE" create secret docker-registry registry-creds \
-    --docker-server="$REGISTRY_SERVER" \
-    --docker-username="$REGISTRY_USERNAME" \
-    --docker-password="$REGISTRY_PASSWORD" \
-    --save-config --dry-run=client -o yaml | kubectl apply -f -
-fi
 
 echo "Done. Secrets created in namespace '$NAMESPACE'."

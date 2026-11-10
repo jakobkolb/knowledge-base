@@ -11,10 +11,6 @@ global:
   secrets: {}   # all secret fields populated in values.secret.yaml
   createSecrets: true   # set false for ArgoCD — pre-create secrets in cluster instead
 
-  registry:
-    existingSecret: ""    # name of a pre-existing imagePullSecret; skips Secret creation
-    dockerConfigJson: ""  # base64 .dockerconfigjson; chart creates a Secret named registry-creds
-
 
 # ── mcp-calendar (mcp-server chart aliased as mcp-calendar) ──────────────────
 mcp-calendar:
