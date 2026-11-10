@@ -214,7 +214,7 @@ mcp-whatsapp:
   # version by the bump workflow.
   extraContainers:
     - name: whatsapp-bridge
-      image: ghcr.io/jakobkolb/mcp-whatsapp:0.10.0
+      image: ghcr.io/jakobkolb/mcp-whatsapp:0.12.0
       imagePullPolicy: IfNotPresent
       command: ["whatsapp-bridge"]
       volumeMounts:
