@@ -11,10 +11,6 @@ global:
   secrets: {}   # all secret fields populated in values.secret.yaml
   createSecrets: true   # set false for ArgoCD — pre-create secrets in cluster instead
 
-  registry:
-    existingSecret: ""    # name of a pre-existing imagePullSecret; skips Secret creation
-    dockerConfigJson: ""  # base64 .dockerconfigjson; chart creates a Secret named registry-creds
-
 
 # ── mcp-calendar (mcp-server chart aliased as mcp-calendar) ──────────────────
 mcp-calendar:
@@ -26,29 +22,38 @@ mcp-calendar:
     enabled: false    # umbrella chart owns all ingresses
   env:
     CALENDAR_CONFIG: /config/config.yaml
+    CALENDAR_TZ: Europe/Berlin   # zone for writing events and returned offsets (mcp-servers >= 0.8.0)
   configFile:
     enabled: true
     mountPath: /config/config.yaml
     content: ""       # set in values.secret.yaml
+  # Calico/Felix periodically re-evaluates pod endpoint routes, briefly making
+  # the pod IP unreachable. Raise failureThreshold so transient EINVAL errors
+  # don't trigger a liveness kill and crash-loop the pod.
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
 
-
-# ── mcp-example (smoketest / hello-world MCP server) ─────────────────────────
-mcp-example:
-  nameOverride: mcp-example    # makes service name <release>-mcp-example
-  image:
-    repository: ghcr.io/jakobkolb/example
-    pullPolicy: Always
-  ingress:
-    enabled: false    # umbrella chart owns all ingresses
-  env: {}
-  configFile:
-    enabled: false
 
 mcp-obsidian:
   nameOverride: mcp-obsidian
+  # IfNotPresent, not Always, for the images that stay: the tag is the release version,
+  # and with Always a deleted and re-pushed tag redeploys on the next pod restart with
+  # no pull request anywhere.
   image:
     repository: ghcr.io/jakobkolb/mcp-obsidian
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 1000    # shared GID for vault volume — both containers get write access
   securityContext:
@@ -84,11 +89,29 @@ mcp-obsidian:
     - name: obsidian-headless-state
       persistentVolumeClaim:
         claimName: obsidian-headless-state
+  # Calico/Felix periodically re-evaluates pod endpoint routes, briefly making
+  # the pod IP unreachable. Raise failureThreshold so transient EINVAL errors
+  # don't trigger a liveness kill and crash-loop the pod. Python handles SIGTERM
+  # gracefully (uvicorn sets should_exit=True) so these restarts appear as exit 0.
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
   # Requires a secret named obsidian-headless-auth with keys:
   # email, password, vault, sync-password.
   extraContainers:
     - name: obsidian-headless
-      image: node:22-bookworm-slim
+      image: node:22.23.4-bookworm-slim  # >= 22.23.4 fixes CVE-2026-111497 (Brotli, "HTTP2Shell")
       imagePullPolicy: IfNotPresent
       securityContext:
         runAsUser: 1000
@@ -103,7 +126,10 @@ mcp-obsidian:
           mkdir -p "${VAULT_PATH}"
           mkdir -p "${HOME}"
           # Install to PVC-backed HOME so uid=1000 can write and it persists across restarts
-          npm install -g --prefix "${HOME}" --cache /tmp/npm-cache obsidian-headless
+          # Pinned: an unversioned install resolves "latest" on every start, in the
+          # container that holds the Obsidian password and the E2E sync password.
+          # Bump deliberately; npm replaces whatever version the PVC prefix holds.
+          npm install -g --prefix "${HOME}" --cache /tmp/npm-cache obsidian-headless@0.0.14
           export PATH="${HOME}/bin:${PATH}"
 
           if ! ob sync-list-remote >/dev/null 2>&1; then
@@ -155,6 +181,119 @@ mcp-obsidian:
           mountPath: /obsidian-home
 
 
+# ── mcp-whatsapp (read-only WhatsApp; Go bridge runs as a sidecar) ───────────
+# Pair via the get_pairing_qr tool, then set WHATSAPP_ALLOWED_CHATS from the
+# output of list_available_chats.
+mcp-whatsapp:
+  nameOverride: mcp-whatsapp
+  image:
+    repository: ghcr.io/jakobkolb/mcp-whatsapp
+    pullPolicy: IfNotPresent
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  env:
+    # Comma-separated chat JIDs the agent may read; empty serves no content.
+    WHATSAPP_ALLOWED_CHATS: ""
+    LOG_LEVEL: INFO
+  extraPersistentVolumeClaims:
+    # Holds the linked-device session and the message database; without it
+    # every restart means re-pairing.
+    - name: whatsapp-store
+      storageClassName: microk8s-hostpath
+      accessModes:
+        - ReadWriteOnce
+      size: 1Gi
+  extraVolumes:
+    - name: store
+      persistentVolumeClaim:
+        claimName: whatsapp-store
+  extraVolumeMounts:
+    - name: store
+      mountPath: /store
+  # Same image as the server, bridge entrypoint. Kept in step with the chart
+  # version by the bump workflow.
+  extraContainers:
+    - name: whatsapp-bridge
+      image: ghcr.io/jakobkolb/mcp-whatsapp:0.10.0
+      imagePullPolicy: IfNotPresent
+      command: ["whatsapp-bridge"]
+      volumeMounts:
+        - name: store
+          mountPath: /store
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    failureThreshold: 6
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
+
+
+# ── mcp-print (CUPS printing; Gotenberg renders the inline document) ─────────
+# The document only ever arrives inside the tool call. The pod talks to the
+# host's CUPS through /run/cups/cups.sock, so CUPS need not listen on the network.
+mcp-print:
+  nameOverride: mcp-print
+  image:
+    repository: ghcr.io/jakobkolb/mcp-print
+    pullPolicy: IfNotPresent
+  ingress:
+    enabled: false    # umbrella chart owns all ingresses
+  env:
+    # Comma-separated CUPS queue names the agent may use; empty allows every queue.
+    PRINT_ALLOWED_PRINTERS: ""
+    # Empty uses the CUPS default destination.
+    PRINT_DEFAULT_PRINTER: ""
+    PRINT_MAX_PAGES: "20"
+    PRINT_MAX_COPIES: "10"
+    LOG_LEVEL: INFO
+  # Mount the directory, not the socket file, so a cupsd restart does not leave
+  # a stale socket behind.
+  extraVolumes:
+    - name: cups
+      hostPath:
+        path: /run/cups
+        type: Directory
+  extraVolumeMounts:
+    - name: cups
+      mountPath: /run/cups
+  # Renders the HTML from the tool call to PDF. Loopback only, no network
+  # fetches (every URL but its own temp files denied, DNS resolves nothing),
+  # no JavaScript, only the Chromium HTML routes. Pinned independently of
+  # mcp-print's version.
+  extraContainers:
+    - name: renderer
+      image: gotenberg/gotenberg:8.38.1-chromium
+      imagePullPolicy: IfNotPresent
+      args:
+        - gotenberg
+        - --api-bind-ip=127.0.0.1
+        - --api-port=3000
+        - --api-timeout=40s
+        - --api-disable-download-from
+        - --webhook-disable
+        - --pdfengines-disable-routes
+        - --chromium-disable-javascript
+        - --chromium-deny-private-ips
+        - --chromium-deny-public-ips
+        - --chromium-deny-list=^(?!file:///tmp/).*
+        - --chromium-host-resolver-rules=MAP * ~NOTFOUND
+        - --chromium-max-queue-size=4
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+      securityContext:
+        allowPrivilegeEscalation: false
 
 
 # ── api-gateway (Dex + oauth2-proxy + well-known server) ─────────────────────
@@ -170,15 +309,31 @@ api-gateway:
   mcpEndpoints:
     - subdomain: calendar
       service: mcp-calendar
-    - subdomain: example
-      service: mcp-example
     - subdomain: obsidian
       service: mcp-obsidian
       port: 8080
+    - subdomain: whatsapp
+      service: mcp-whatsapp
+    - subdomain: print
+      service: mcp-print
+
+  # Every MCP connector registers as the same client, and Dex keeps one refresh
+  # token per (user, connector, client) - with a single shared connector each
+  # login revoked every other MCP connector's refresh token. This sends each
+  # endpoint's login through its own Dex connector "github-<subdomain>" below.
+  perEndpointConnectors:
+    enabled: true
 
   dex:
+    env:
+      # Expanded by Dex inside connector configs ($DEX_REDIRECT_URI). Env is a
+      # map, so environments override just this value instead of copying the
+      # whole connectors list (Helm replaces lists whole).
+      # When changing domain: update this and issuer below to match
+      # global.authServerUrl (https://auth.<baseDomain>)
+      DEX_REDIRECT_URI: https://auth.mcp.jakobjkolb.xyz/callback
     config:
-      # When changing domain: update issuer and connectors[0].config.redirectURI
+      # When changing domain: update issuer and DEX_REDIRECT_URI (see env above)
       # to match global.authServerUrl (https://auth.<baseDomain>)
       issuer: https://auth.mcp.jakobjkolb.xyz
       storage:
@@ -187,20 +342,43 @@ api-gateway:
           inCluster: true
       web:
         http: 0.0.0.0:5556
+      # One connector per mcpEndpoints entry (the api-gateway render fails if one
+      # is missing), all on the same GitHub OAuth app and callback. "github" stays
+      # for clients that do not send the RFC 8707 resource parameter.
       connectors:
-        - type: github
+        - &github-connector
+          type: github
           id: github
           name: GitHub
           config:
             clientID: $GITHUB_CLIENT_ID
             clientSecret: $GITHUB_CLIENT_SECRET
-            redirectURI: https://auth.mcp.jakobjkolb.xyz/callback
+            redirectURI: $DEX_REDIRECT_URI
+        - {<<: *github-connector, id: github-calendar}
+        - {<<: *github-connector, id: github-obsidian}
+        - {<<: *github-connector, id: github-whatsapp}
+        - {<<: *github-connector, id: github-print}
       oauth2:
         skipApprovalScreen: true
+      expiry:
+        # Clients now hold a refresh token and renew silently, so the 72h
+        # workaround for silent expiry is no longer needed.
+        idTokens: 8h
+        # Dex keeps a demoted signing key in the JWKS for idTokens after each
+        # rotation, so signingKeys does not need to exceed idTokens.
+        signingKeys: 12h
+        refreshTokens:
+          # Tolerate client retries and concurrent refreshes; outside this
+          # window a replayed token is rejected and the client is logged out.
+          reuseInterval: 30s
+          # Re-authenticate only after a genuinely long idle gap.
+          validIfNotUsedFor: 2160h
       staticClients:
+        # Public client: authenticates with PKCE alone, matching what /register
+        # hands out. A secret here makes Dex reject PKCE-only clients.
         - id: claude-mcp
           name: Claude MCP
-          secretEnv: DEX_CLIENT_SECRET
+          public: true
           redirectURIs:
             - https://claude.ai/api/mcp/auth_callback
     envFrom:
@@ -222,7 +400,9 @@ api-gateway:
       # When changing domain: update oidc-issuer-url to match global.authServerUrl (https://auth.<baseDomain>)
       oidc-issuer-url: https://auth.mcp.jakobjkolb.xyz
       upstream: file:///dev/null      # external-auth mode only — no reverse proxying
-      email-domain: "*"
+      # No email-domain here: who may log in is the allow-list in the Secret
+      # oauth2-proxy-allowed-emails (api-gateway authenticatedEmailsFile), filled
+      # from global.secrets.allowedEmails or by the secret bootstrap.
       skip-jwt-bearer-tokens: "true"  # validate Bearer JWTs directly (no session cookie)
       skip-provider-button: "true"
       http-address: 0.0.0.0:4180

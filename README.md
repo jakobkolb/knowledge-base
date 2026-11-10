@@ -22,8 +22,8 @@ Claude (any client)
 
 MCP endpoints (configured via `api-gateway.mcpEndpoints`):
 - `calendar.<baseDomain>` → mcp-calendar pod
-- `example.<baseDomain>` → example MCP server (smoketest)
 - `obsidian.<baseDomain>` → mcp-obsidian pod (with obsidian-headless sidecar for vault sync)
+- `whatsapp.<baseDomain>` → mcp-whatsapp pod (read-only WhatsApp; bridge sidecar, paired via the `get_pairing_qr` tool, readable chats set in `mcp-whatsapp.env.WHATSAPP_ALLOWED_CHATS`)
 
 ---
 
@@ -34,9 +34,7 @@ chart/
 ├── Chart.yaml              ← umbrella chart; all deps from OCI
 ├── values.yaml             ← all non-secret config
 ├── values.secret.yaml      ← gitignored; credentials and secrets
-├── secrets-bootstrap.sh    ← one-time secret creation helper
-└── templates/
-    └── secrets.yaml        ← optional registry pull secret
+└── secrets-bootstrap.sh    ← one-time secret creation helper
 ```
 
 ### Subcharts (all from OCI)
@@ -44,8 +42,8 @@ chart/
 | Alias | Chart | Role |
 |---|---|---|
 | `mcp-calendar` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Calendar MCP server |
-| `mcp-example` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Smoketest MCP server |
 | `mcp-obsidian` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Obsidian vault MCP server (with headless sync sidecar) |
+| `mcp-whatsapp` | `oci://ghcr.io/jakobkolb/charts/mcp-server` | Read-only WhatsApp MCP server (with bridge sidecar) |
 | `api-gateway` | `oci://ghcr.io/jakobkolb/charts/api-gateway` | Dex + oauth2-proxy + well-known server + ingress |
 
 The `api-gateway` chart is maintained at [jakobkolb/mcp-oauth-gateway](https://github.com/jakobkolb/mcp-oauth-gateway).
@@ -75,8 +73,6 @@ api-gateway:
   mcpEndpoints:
     - subdomain: calendar
       service: mcp-calendar
-    - subdomain: example
-      service: mcp-example
     - subdomain: obsidian
       service: mcp-obsidian
       port: 8080     # optional — defaults to 8000 if omitted
@@ -93,6 +89,7 @@ global:
     githubClientSecret: ""    # GitHub OAuth App → Client Secret
     dexClientSecret: ""       # shared: Dex staticClient ↔ oauth2-proxy (generate randomly)
     cookieSecret: ""          # oauth2-proxy cookie secret: exactly 16, 24 or 32 bytes (openssl rand -hex 16)
+    allowedEmails: ""         # who may log in: GitHub primary email, one address per line
 
 mcp-calendar:
   configFile:
@@ -160,7 +157,7 @@ helm upgrade --install knowledge-base chart/ \
 **Claude.ai / Claude iOS / Claude Android:**
 1. Settings → Integrations → Add Custom Connector
 2. Name: Calendar, URL: `https://calendar.<baseDomain>/mcp`
-3. Advanced → OAuth Client ID: `claude-mcp`, OAuth Client Secret: `<dexClientSecret>`
+3. Advanced → OAuth Client ID: `claude-mcp` (leave OAuth Client Secret empty — claude-mcp is a public PKCE client)
 4. Authenticate via GitHub
 5. Repeat for `https://obsidian.<baseDomain>/mcp`
 
