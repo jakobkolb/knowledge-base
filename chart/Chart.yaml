@@ -11,20 +11,20 @@ maintainers:
   - name: jakobkolb
 dependencies:
   - name: mcp-server
-    version: "0.8.1"
+    version: "0.12.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-calendar
   - name: mcp-server
-    version: "0.9.0"
+    version: "0.12.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-obsidian
   - name: mcp-server
-    version: "0.10.0"
+    version: "0.12.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-whatsapp
   - name: mcp-server
     # First release with mcp-print; do not merge before v0.11.0 is tagged.
-    version: "0.11.0"
+    version: "0.12.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-print
   - name: api-gateway
