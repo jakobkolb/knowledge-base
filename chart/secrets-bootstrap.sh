@@ -18,6 +18,7 @@ GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:-}"
 DEX_CLIENT_SECRET="${DEX_CLIENT_SECRET:-}"   # shared between Dex staticClient and oauth2-proxy
 COOKIE_SECRET="${COOKIE_SECRET:-}"           # must decode to exactly 16, 24, or 32 bytes — generate with:
                                              #   python3 -c 'import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())'
+ALLOWED_EMAILS="${ALLOWED_EMAILS:-}"         # addresses allowed to log in, comma-separated
 
 # Obsidian headless sync credentials (obsidian.md account)
 OBSIDIAN_EMAIL="${OBSIDIAN_EMAIL:-}"
@@ -36,6 +37,7 @@ missing=()
 [[ -z "$GITHUB_CLIENT_SECRET" ]] && missing+=("GITHUB_CLIENT_SECRET")
 [[ -z "$DEX_CLIENT_SECRET" ]]    && missing+=("DEX_CLIENT_SECRET")
 [[ -z "$COOKIE_SECRET" ]]            && missing+=("COOKIE_SECRET")
+[[ -z "$ALLOWED_EMAILS" ]]           && missing+=("ALLOWED_EMAILS")
 [[ -z "$OBSIDIAN_EMAIL" ]]           && missing+=("OBSIDIAN_EMAIL")
 [[ -z "$OBSIDIAN_PASSWORD" ]]        && missing+=("OBSIDIAN_PASSWORD")
 [[ -z "$OBSIDIAN_VAULT" ]]           && missing+=("OBSIDIAN_VAULT")
@@ -71,6 +73,10 @@ kubectl -n "$NAMESPACE" create secret generic oauth2-proxy \
   --from-literal=client-id="claude-mcp" \
   --from-literal=client-secret="$DEX_CLIENT_SECRET" \
   --from-literal=cookie-secret="$COOKIE_SECRET" \
+  --save-config --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl -n "$NAMESPACE" create secret generic oauth2-proxy-allowed-emails \
+  --from-literal=restricted_user_access="$(tr ',' '\n' <<<"$ALLOWED_EMAILS")" \
   --save-config --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n "$NAMESPACE" create secret generic obsidian-headless-auth \

@@ -101,6 +101,7 @@ global:
     githubClientSecret: ""    # GitHub OAuth App → Client Secret
     dexClientSecret: ""       # shared: Dex staticClient ↔ oauth2-proxy (generate randomly)
     cookieSecret: ""          # oauth2-proxy cookie secret (generate randomly)
+    allowedEmails: ""         # who may log in: GitHub primary email, one address per line
 
 mcp-calendar:
   configFile:
