@@ -264,6 +264,10 @@ mcp-print:
   extraVolumeMounts:
     - name: cups
       mountPath: /run/cups
+      # Read-only so the container cannot delete or replace the socket file for other
+      # clients on the host. connect() on a socket still works on a read-only mount; what
+      # the container may ask cupsd to do is limited by its unprivileged UID, not by this.
+      readOnly: true
   # Renders the HTML from the tool call to PDF. Loopback only, no network
   # fetches (every URL but its own temp files denied, DNS resolves nothing),
   # no JavaScript, only the Chromium HTML routes. Pinned independently of
