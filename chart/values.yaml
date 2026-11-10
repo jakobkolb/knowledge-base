@@ -48,6 +48,11 @@ mcp-calendar:
 
 mcp-obsidian:
   nameOverride: mcp-obsidian
+  # Recreate: the sync sidecar takes a lock on the vault, so a RollingUpdate crash-loops the new
+  # pod ("Another sync instance is already running") until the old one is gone. Needs the
+  # mcp-server chart value "strategy" (mcp-servers >= the release after 0.12.0; ignored before).
+  strategy:
+    type: Recreate
   # IfNotPresent, not Always, for the images that stay: the tag is the release version,
   # and with Always a deleted and re-pushed tag redeploys on the next pod restart with
   # no pull request anywhere.
@@ -186,6 +191,11 @@ mcp-obsidian:
 # output of list_available_chats.
 mcp-whatsapp:
   nameOverride: mcp-whatsapp
+  # Recreate: the bridge holds a linked-device session and a SQLite store on a PVC; two bridges
+  # on one session must never overlap. Needs the mcp-server chart value "strategy" (ignored by
+  # older charts).
+  strategy:
+    type: Recreate
   image:
     repository: ghcr.io/jakobkolb/mcp-whatsapp
     pullPolicy: IfNotPresent
