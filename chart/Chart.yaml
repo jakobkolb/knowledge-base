@@ -15,17 +15,9 @@ dependencies:
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-calendar
   - name: mcp-server
-    version: "0.6.2"
-    repository: "oci://ghcr.io/jakobkolb/charts"
-    alias: mcp-example
-  - name: mcp-server
     version: "0.9.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-obsidian
-  - name: mcp-server
-    version: "0.7.0"
-    repository: "oci://ghcr.io/jakobkolb/charts"
-    alias: mcp-whisper
   - name: mcp-server
     version: "0.10.0"
     repository: "oci://ghcr.io/jakobkolb/charts"
@@ -36,8 +28,7 @@ dependencies:
     repository: "oci://ghcr.io/jakobkolb/charts"
     alias: mcp-print
   - name: api-gateway
-    # 0.4.0 adds per-endpoint ingress annotations (mcp-whisper upload body
-    # size); 0.5.0 adds perEndpointConnectors (one refresh token per connector);
+    # 0.4.0 adds per-endpoint ingress annotations; 0.5.0 adds perEndpointConnectors (one refresh token per connector);
     # 0.6.0 restricts logins to an email allow-list (needs the Secret
     # oauth2-proxy-allowed-emails). Do not merge before v0.6.0 is tagged.
     version: "0.6.0"
