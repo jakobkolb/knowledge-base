@@ -413,6 +413,23 @@ api-gateway:
           public: true
           redirectURIs:
             - https://claude.ai/api/mcp/auth_callback
+        # Open WebUI (chat.jakobjkolb.xyz), set up in its admin UI as MCP
+        # connections with auth "OAuth 2.1 (static)", client ID "open-webui", any
+        # non-empty secret (the token endpoint only offers "none", so it is never
+        # sent; PKCE does the work). A client of its own, not claude-mcp: Dex keeps
+        # one refresh token per (user, connector, client), so sharing claude-mcp
+        # would make Open WebUI and claude.ai revoke each other's refresh tokens.
+        # Open WebUI's callback is /oauth/clients/mcp:<connection ID>/callback and
+        # Dex matches redirect URIs exactly, so the connection ID in Open WebUI
+        # must be the endpoint subdomain. Same host for staging and prod.
+        - id: open-webui
+          name: Open WebUI
+          public: true
+          redirectURIs:
+            - https://chat.jakobjkolb.xyz/oauth/clients/mcp:calendar/callback
+            - https://chat.jakobjkolb.xyz/oauth/clients/mcp:obsidian/callback
+            - https://chat.jakobjkolb.xyz/oauth/clients/mcp:whatsapp/callback
+            - https://chat.jakobjkolb.xyz/oauth/clients/mcp:print/callback
     envFrom:
       - secretRef:
           name: dex-github-client   # secrets-bootstrap.sh (ArgoCD) or templates/secrets.yaml
@@ -431,6 +448,10 @@ api-gateway:
       provider: oidc
       # When changing domain: update oidc-issuer-url to match global.authServerUrl (https://auth.<baseDomain>)
       oidc-issuer-url: https://auth.mcp.jakobjkolb.xyz
+      # oauth2-proxy accepts Bearer JWTs whose audience is its own client-id
+      # (claude-mcp) only. Also accept tokens issued to the open-webui Dex client.
+      # Format <issuer>=<audience>; update with oidc-issuer-url.
+      extra-jwt-issuers: https://auth.mcp.jakobjkolb.xyz=open-webui
       upstream: file:///dev/null      # external-auth mode only — no reverse proxying
       # No email-domain here: who may log in is the allow-list in the Secret
       # oauth2-proxy-allowed-emails (api-gateway authenticatedEmailsFile), filled
